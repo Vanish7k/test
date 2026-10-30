@@ -7,6 +7,8 @@ const DIFFICULTIES = {
 
 const STORE_KEY = 'paper-sudoku:v1';
 const BEST_KEY = 'paper-sudoku:bests:v1';
+const LEADERBOARD_KEY = 'paper-sudoku:leaderboard:v1';
+const LEADERBOARD_MAX = 10;
 const HINT_LIMIT = 3;
 
 const ICONS = {
@@ -41,12 +43,23 @@ const startNewBtn = document.getElementById('startNewBtn');
 const toastEl = document.getElementById('toast');
 const liveEl = document.getElementById('live');
 
+const leaderBtn = document.getElementById('leaderBtn');
+const leaderOverlay = document.getElementById('leaderOverlay');
+const leaderTabsEl = document.getElementById('leaderTabs');
+const leaderListEl = document.getElementById('leaderList');
+const leaderEmptyEl = document.getElementById('leaderEmpty');
+const leaderCloseBtn = document.getElementById('leaderCloseBtn');
+const leaderClearBtn = document.getElementById('leaderClearBtn');
+const winRankEl = document.getElementById('winRank');
+const winShareBtn = document.getElementById('winShareBtn');
+
 const cells = [];
 const padButtons = [];
 
 let state = null;
 let modalOpen = false;
 let sheetDifficulty = 'easy';
+let leaderDifficulty = 'easy';
 let toastTimer = 0;
 
 const PEERS = buildPeerMap();
@@ -495,11 +508,86 @@ function recordBest() {
   return false;
 }
 
+function readLeaderboard() {
+  try {
+    const raw = localStorage.getItem(LEADERBOARD_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const result = {};
+    for (const key of Object.keys(DIFFICULTIES)) {
+      result[key] = Array.isArray(parsed[key]) ? parsed[key].filter(validLeaderEntry) : [];
+    }
+    return result;
+  } catch {
+    return Object.fromEntries(Object.keys(DIFFICULTIES).map((k) => [k, []]));
+  }
+}
+
+function validLeaderEntry(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+  const t = Number(entry.time);
+  const m = Number(entry.mistakes);
+  const d = Number(entry.date);
+  if (!Number.isFinite(t) || t <= 0) return false;
+  if (!Number.isInteger(m) || m < 0) return false;
+  if (!Number.isFinite(d) || d <= 0) return false;
+  return true;
+}
+
+function writeLeaderboard(data) {
+  try {
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(data));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+function addLeaderboardScore(difficulty, entry) {
+  const board = readLeaderboard();
+  const list = board[difficulty] || [];
+  list.push(entry);
+  list.sort((a, b) => a.time - b.time || a.mistakes - b.mistakes || a.date - b.date);
+  if (list.length > LEADERBOARD_MAX) list.length = LEADERBOARD_MAX;
+  board[difficulty] = list;
+  writeLeaderboard(board);
+  return list.findIndex((e) => e === entry) + 1;
+}
+
+function clearLeaderboard(difficulty) {
+  const board = readLeaderboard();
+  board[difficulty] = [];
+  writeLeaderboard(board);
+}
+
+function formatLeaderDate(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  if (sameDay(date, now)) return '今天';
+  if (sameDay(date, yesterday)) return '昨天';
+  if (date.getFullYear() === now.getFullYear()) return `${mm}-${dd}`;
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
+
 function finishGame() {
   state.completed = true;
   state.paused = false;
   pauseOverlay.hidden = true;
   const isRecord = recordBest();
+
+  const entry = {
+    time: state.elapsed,
+    mistakes: state.mistakes,
+    date: Date.now(),
+    hintsUsed: HINT_LIMIT - state.hints,
+  };
+  const rank = addLeaderboardScore(state.difficulty, entry);
 
   winStatsEl.innerHTML = [
     `<div class="win-stat"><span class="k">难度</span><span class="v">${DIFFICULTIES[state.difficulty].label}</span></div>`,
@@ -507,6 +595,13 @@ function finishGame() {
     `<div class="win-stat"><span class="k">错误</span><span class="v">${state.mistakes}</span></div>`,
   ].join('');
   winBestEl.hidden = !isRecord;
+  if (rank > 0 && rank <= LEADERBOARD_MAX) {
+    winRankEl.hidden = false;
+    winRankEl.textContent =
+      rank === 1 ? '🏆 排行榜第 1 名！' : `排行榜第 ${rank} 名`;
+  } else {
+    winRankEl.hidden = true;
+  }
   winOverlay.hidden = false;
 
   render();
@@ -538,6 +633,124 @@ function closeNewSheet({ focus = true } = {}) {
   modalOpen = false;
   newOverlay.hidden = true;
   if (focus) newBtn.focus();
+}
+
+function buildLeaderTabs() {
+  const fragment = document.createDocumentFragment();
+  for (const [key, info] of Object.entries(DIFFICULTIES)) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'leader-tab';
+    btn.textContent = info.label;
+    btn.dataset.difficulty = key;
+    btn.setAttribute('role', 'tab');
+    btn.addEventListener('click', () => {
+      leaderDifficulty = key;
+      renderLeaderboard();
+    });
+    fragment.appendChild(btn);
+  }
+  leaderTabsEl.appendChild(fragment);
+}
+
+function openLeaderboard() {
+  if (state && !state.completed && !state.paused) setPaused(true);
+  modalOpen = true;
+  if (state) leaderDifficulty = state.difficulty;
+  renderLeaderboard();
+  leaderOverlay.hidden = false;
+  leaderCloseBtn.focus();
+}
+
+function closeLeaderboard() {
+  modalOpen = false;
+  leaderOverlay.hidden = true;
+  leaderBtn.focus();
+}
+
+function rankLabel(rank) {
+  if (rank === 1) return '🥇';
+  if (rank === 2) return '🥈';
+  if (rank === 3) return '🥉';
+  return String(rank);
+}
+
+function renderLeaderboard() {
+  for (const tab of leaderTabsEl.children) {
+    const active = tab.dataset.difficulty === leaderDifficulty;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  }
+
+  const entries = (readLeaderboard()[leaderDifficulty] || []).slice(0, LEADERBOARD_MAX);
+  leaderListEl.innerHTML = '';
+
+  if (entries.length === 0) {
+    leaderEmptyEl.hidden = false;
+    leaderClearBtn.disabled = true;
+    return;
+  }
+  leaderEmptyEl.hidden = true;
+  leaderClearBtn.disabled = false;
+
+  const fragment = document.createDocumentFragment();
+  entries.forEach((entry, index) => {
+    const rank = index + 1;
+    const row = document.createElement('div');
+    row.className = 'leader-row' + (rank <= 3 ? ` rank-${rank}` : '');
+    row.setAttribute('role', 'listitem');
+
+    const rankEl = document.createElement('span');
+    rankEl.className = 'leader-rank';
+    rankEl.textContent = rankLabel(rank);
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'leader-time';
+    timeEl.textContent = formatTime(entry.time);
+
+    const metaEl = document.createElement('span');
+    metaEl.className = 'leader-meta';
+    metaEl.textContent = `错 ${entry.mistakes} · ${formatLeaderDate(entry.date)}`;
+
+    row.append(rankEl, timeEl, metaEl);
+    fragment.appendChild(row);
+  });
+  leaderListEl.appendChild(fragment);
+}
+
+function shareScore() {
+  if (!state || !state.completed) return;
+  const text = [
+    `🧩 数独 · ${DIFFICULTIES[state.difficulty].label}`,
+    `⏱ 用时 ${formatTime(state.elapsed)}`,
+    `❌ 错误 ${state.mistakes}`,
+  ].join('\n');
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try {
+      ok = document.execCommand('copy');
+    } catch {
+      ok = false;
+    }
+    document.body.removeChild(ta);
+    announce(ok ? '成绩已复制到剪贴板' : '复制失败，请手动选择文字');
+  };
+  if (navigator.share) {
+    navigator.share({ title: '数独成绩', text }).catch(() => fallback());
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => announce('成绩已复制到剪贴板'),
+      fallback
+    );
+  } else {
+    fallback();
+  }
 }
 
 function save() {
@@ -661,16 +874,30 @@ function bindEvents() {
   winCloseBtn.addEventListener('click', () => {
     winOverlay.hidden = true;
   });
+  winShareBtn.addEventListener('click', shareScore);
+
+  leaderBtn.addEventListener('click', openLeaderboard);
+  leaderCloseBtn.addEventListener('click', closeLeaderboard);
+  leaderClearBtn.addEventListener('click', () => {
+    clearLeaderboard(leaderDifficulty);
+    renderLeaderboard();
+    announce(`已清空${DIFFICULTIES[leaderDifficulty].label}排行榜`);
+  });
 
   newOverlay.addEventListener('click', (event) => {
     if (event.target === newOverlay) closeNewSheet();
+  });
+
+  leaderOverlay.addEventListener('click', (event) => {
+    if (event.target === leaderOverlay) closeLeaderboard();
   });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       if (modalOpen) {
         event.preventDefault();
-        closeNewSheet();
+        if (!leaderOverlay.hidden) closeLeaderboard();
+        else closeNewSheet();
       }
       return;
     }
@@ -753,6 +980,7 @@ function init() {
   buildBoard();
   buildDiffList();
   buildPad();
+  buildLeaderTabs();
   bindEvents();
 
   const saved = loadSaved();
