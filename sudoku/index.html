@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ebe7dd">
+<meta name="description" content="一款安静、专注的网页数独，适配手机与桌面。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2326231d'/%3E%3Cpath d='M11 7v18M21 7v18M7 11h18M7 21h18' stroke='%23f6f0e2' stroke-width='1.5'/%3E%3C/svg%3E">
+<title>数独 · Paper Sudoku</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-cn">数独</span>
+        <span class="brand-en">Paper Sudoku</span>
+      </div>
+      <div class="top-actions">
+        <button class="pill-btn" id="newBtn" type="button">新游戏</button>
+        <button class="icon-btn" id="pauseBtn" type="button" aria-label="暂停" title="暂停">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="status" aria-label="游戏状态">
+      <div class="stat"><span class="stat-label">难度</span><span class="stat-value accent" id="diffChip">简单</span></div>
+      <div class="stat"><span class="stat-label">时间</span><span class="stat-value" id="timer">00:00</span></div>
+      <div class="stat"><span class="stat-label">错误</span><span class="stat-value" id="mistakes">0</span></div>
+      <div class="stat"><span class="stat-label">提示</span><span class="stat-value" id="hintsLeft">3</span></div>
+    </section>
+
+    <section class="board-wrap" aria-label="棋盘区域">
+      <div class="board" id="board" role="grid" aria-label="数独棋盘，9 行 9 列"></div>
+
+      <div class="overlay" id="pauseOverlay" hidden>
+        <div class="overlay-card">
+          <p class="eyebrow">PAUSED</p>
+          <p class="overlay-title">已暂停</p>
+          <p class="overlay-sub">计时已停止，回来继续解题。</p>
+          <button class="primary-btn" id="resumeBtn" type="button">继续游戏</button>
+        </div>
+      </div>
+
+      <div class="overlay" id="winOverlay" hidden>
+        <div class="overlay-card win-card">
+          <p class="eyebrow">SOLVED</p>
+          <p class="overlay-title">解出来了</p>
+          <div class="win-stats" id="winStats"></div>
+          <p class="win-best" id="winBest" hidden>新的最佳纪录</p>
+          <div class="win-actions">
+            <button class="primary-btn" id="winNewBtn" type="button">再来一局</button>
+            <button class="ghost-btn" id="winCloseBtn" type="button">看看棋盘</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tools" aria-label="工具">
+      <button class="tool" id="undoBtn" type="button">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-1"/></svg>
+        <span>撤销</span>
+      </button>
+      <button class="tool" id="eraseBtn" type="button">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+        <span>擦除</span>
+      </button>
+      <button class="tool" id="notesBtn" type="button" aria-pressed="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.8 2.8 0 0 0-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>
+        <span>笔记</span>
+      </button>
+      <button class="tool" id="hintBtn" type="button">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.4 10.9c.6.4 1 1.1 1 1.8V16h4.8v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3Z"/></svg>
+        <span>提示</span>
+        <span class="tool-badge" id="hintBadge">3</span>
+      </button>
+    </section>
+
+    <section class="pad" id="pad" aria-label="数字键盘"></section>
+
+    <p class="tip">点击格子后输入数字 · 开启“笔记”记录候选数 · 键盘 1–9 同样可用</p>
+  </main>
+
+  <div class="sheet-backdrop" id="newOverlay" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="newTitle">
+      <div class="sheet-grabber" aria-hidden="true"></div>
+      <h2 id="newTitle">新游戏</h2>
+      <p class="sheet-sub">选择难度，开始一局新的数独。</p>
+      <div class="diff-list" id="diffList"></div>
+      <div class="sheet-actions">
+        <button class="ghost-btn" id="cancelNewBtn" type="button">继续当前</button>
+        <button class="primary-btn" id="startNewBtn" type="button">开始</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <p class="sr-only" id="live" aria-live="polite"></p>
+
+  <script src="js/sudoku.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
