@@ -852,13 +852,16 @@
 
   init();
 
+  // 隐藏启动 Loader：最短显示 3s，DOM ready 后隐藏，最长 4.5s 兜底
   (function hideAppLoader() {
     const loader = document.getElementById('appLoader');
     if (!loader) return;
+    const MIN = 3000;
+    const MAX = 4500;
     const start = performance.now();
-    const MIN = 800, MAX = 3000;
     const done = () => {
-      const wait = Math.max(0, MIN - (performance.now() - start));
+      const elapsed = performance.now() - start;
+      const wait = Math.max(0, MIN - elapsed);
       setTimeout(() => {
         loader.hidden = true;
         loader.setAttribute('aria-hidden', 'true');

@@ -1597,7 +1597,7 @@ init();
   const loader = document.getElementById('appLoader');
   if (!loader) return;
   const start = performance.now();
-  const MIN = 800, MAX = 3000;
+  const MIN = 3000, MAX = 4500;
   const done = () => {
     const wait = Math.max(0, MIN - (performance.now() - start));
     setTimeout(() => {
