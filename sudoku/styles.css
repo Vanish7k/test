@@ -1307,6 +1307,117 @@ button {
   }
 }
 
+/* ---------- Switch game / update bar ---------- */
+
+.switch-game {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.switch-game:hover,
+.switch-game:active {
+  border-color: var(--line-strong);
+  background: #fdf8ec;
+}
+
+.switch-game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-game-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.switch-game-desc {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.switch-game-arrow {
+  flex: none;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 28px);
+  padding: 9px 10px 9px 16px;
+  border: 1px solid rgba(180, 90, 47, 0.3);
+  border-radius: 999px;
+  background: #fffaf0;
+  box-shadow: 0 10px 30px rgba(60, 45, 25, 0.18);
+  animation: update-in 0.24s ease both;
+}
+
+.update-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.update-btn {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff9ee;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.update-btn:active {
+  transform: translateY(1px);
+}
+
+.update-close {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes update-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {

@@ -50,6 +50,9 @@ const missingBoxEl = document.getElementById('missingBox');
 const missingRowItemEl = document.getElementById('missingRowItem');
 const missingColItemEl = document.getElementById('missingColItem');
 const missingBoxItemEl = document.getElementById('missingBoxItem');
+const updateBarEl = document.getElementById('updateBar');
+const updateBtnEl = document.getElementById('updateBtn');
+const updateDismissEl = document.getElementById('updateDismiss');
 
 const leaderBtn = document.getElementById('leaderBtn');
 const leaderOverlay = document.getElementById('leaderOverlay');
@@ -1341,12 +1344,30 @@ function init() {
 
   startRun();
   window.setInterval(tick, 1000);
+  setupServiceWorker();
+}
 
-  if ('serviceWorker' in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      /* 离线缓存不可用，不影响游戏 */
-    });
-  }
+let updatePrompted = false;
+
+function setupServiceWorker() {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+  const hadController = Boolean(navigator.serviceWorker.controller);
+
+  updateBtnEl.addEventListener('click', () => location.reload());
+  updateDismissEl.addEventListener('click', () => {
+    updateBarEl.hidden = true;
+  });
+
+  // 新版本接管后提示刷新，避免用户一直停留在旧页面
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || updatePrompted) return;
+    updatePrompted = true;
+    updateBarEl.hidden = false;
+  });
+
+  navigator.serviceWorker.register('sw.js').catch(() => {
+    /* 离线缓存不可用，不影响游戏 */
+  });
 }
 
 init();

@@ -1,0 +1,378 @@
+:root {
+  --bg: #ebe7dd;
+  --surface: #fffcf4;
+  --surface-soft: #f7f2e7;
+  --ink: #26231d;
+  --ink-soft: #5c5548;
+  --muted: #918878;
+  --line: #ded6c5;
+  --line-strong: #cfc4ad;
+  --accent: #b45a2f;
+  --accent-strong: #9c4720;
+  --ui-font: "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --serif: "Songti SC", "Noto Serif SC", Georgia, serif;
+  --gap: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #f6f1e6 0%, transparent 60%),
+    var(--bg);
+  color: var(--ink);
+  font-family: var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.game {
+  width: min(100%, 500px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 顶栏 ---------- */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.back {
+  flex: none;
+  padding: 8px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 252, 244, 0.86);
+  color: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.back:active {
+  background: var(--surface);
+}
+
+.scores {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.score {
+  min-width: 66px;
+  padding: 6px 12px 7px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 252, 244, 0.86);
+  text-align: center;
+}
+
+.score .k {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+
+.score strong {
+  display: block;
+  margin-top: 1px;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+}
+
+.round {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 252, 244, 0.86);
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.round:active {
+  transform: translateY(1px);
+}
+
+.round:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ---------- 棋盘 ---------- */
+
+.board-wrap {
+  margin-top: 16px;
+}
+
+.board {
+  --gap: 10px;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  padding: var(--gap);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 2px 0 rgba(60, 45, 25, 0.04), 0 18px 40px -28px rgba(60, 45, 25, 0.4);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overflow: hidden;
+}
+
+.cells {
+  position: absolute;
+  inset: var(--gap);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: var(--gap);
+}
+
+.cell {
+  border-radius: 10px;
+  background: #efe8d9;
+}
+
+.tiles {
+  position: absolute;
+  inset: var(--gap);
+  pointer-events: none;
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 70px;
+  height: 70px;
+  transform: translate3d(0, 0, 0);
+  transition: transform 110ms cubic-bezier(0.2, 0.65, 0.3, 1);
+  will-change: transform;
+}
+
+.tiles.no-anim .tile {
+  transition: none !important;
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  font-family: var(--ui-font);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: #eee4d4;
+  color: #6b6152;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.face > span {
+  display: block;
+  transform: translateY(-0.02em);
+}
+
+.face.pop {
+  animation: tile-pop 160ms ease-out;
+}
+
+.face.spawn {
+  animation: tile-spawn 170ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes tile-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes tile-spawn {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* 数字配色 */
+
+.face.v2 { background: #eee4d4; color: #6b6152; }
+.face.v4 { background: #ede0c8; color: #655b4b; }
+.face.v8 { background: #f2b179; color: #5a3a1c; }
+.face.v16 { background: #f59563; color: #4f3217; }
+.face.v32 { background: #f67c5f; color: #47230f; }
+.face.v64 { background: #f65e3b; color: #fff8ee; }
+.face.v128 { background: #edcf72; color: #4a3413; }
+.face.v256 { background: #edcc61; color: #42300f; }
+.face.v512 { background: #edc850; color: #3b2b0c; }
+.face.v1024 { background: #edc53f; color: #332509; }
+.face.v2048 { background: #edc22e; color: #2b2007; }
+.face.v-super { background: #3c3a32; color: #fdf7e7; }
+
+/* ---------- 结束 / 胜利浮层 ---------- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255, 252, 244, 0.9);
+  backdrop-filter: blur(2px);
+  animation: overlay-in 180ms ease both;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ov-card {
+  text-align: center;
+}
+
+.ov-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.ov-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ov-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.ghost,
+.primary {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ghost {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+.primary {
+  border: 1px solid transparent;
+  background: var(--accent);
+  color: #fff9ee;
+}
+
+.primary:active,
+.ghost:active {
+  transform: translateY(1px);
+}
+
+/* ---------- 底部提示 ---------- */
+
+.tip {
+  margin: 16px 4px 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---------- 窄屏 ---------- */
+
+@media (max-width: 380px) {
+  .bar {
+    gap: 7px;
+  }
+  .back {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+  .score {
+    min-width: 56px;
+    padding: 5px 9px 6px;
+  }
+  .score strong {
+    font-size: 15px;
+  }
+  .round {
+    width: 32px;
+    height: 32px;
+    font-size: 15px;
+  }
+  .board-wrap {
+    margin-top: 12px;
+  }
+}
+
+/* ---------- 减少动态效果 ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .tile,
+  .face {
+    transition-duration: 0.001ms !important;
+  }
+  .face.pop,
+  .face.spawn,
+  .overlay {
+    animation-duration: 0.001ms !important;
+  }
+}

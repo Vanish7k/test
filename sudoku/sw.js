@@ -1,14 +1,17 @@
 /* 纸感数独 · 离线缓存 */
-const CACHE = 'paper-sudoku-v6';
+const CACHE = 'paper-sudoku-v7';
 const CORE = [
   './',
   './index.html',
+  './2048.html',
   './styles.css',
+  './2048.css',
   './manifest.json',
   './js/config.js',
   './js/sudoku.js',
   './js/remote.js',
   './js/app.js',
+  './js/2048.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',

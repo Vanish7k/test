@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ebe7dd">
+<meta name="description" content="纸感 2048，滑动合并数字，支持撤销与最高分记录。">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>2048 · Paper</title>
+<link rel="stylesheet" href="2048.css">
+</head>
+<body>
+<main class="game">
+  <header class="bar">
+    <a class="back" href="index.html" aria-label="返回数独">← 数独</a>
+    <div class="scores">
+      <div class="score"><span class="k">得分</span><strong id="score">0</strong></div>
+      <div class="score"><span class="k">最高</span><strong id="best">0</strong></div>
+    </div>
+    <div class="actions">
+      <button class="round" id="undoBtn" type="button" aria-label="撤销上一步" title="撤销">↺</button>
+      <button class="round" id="restartBtn" type="button" aria-label="重新开始" title="重新开始">⟲</button>
+    </div>
+  </header>
+
+  <section class="board-wrap">
+    <div class="board" id="board" role="application" aria-label="2048 棋盘，滑动或使用方向键移动数字">
+      <div class="cells" id="cells" aria-hidden="true"></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="overlay" id="overlay" hidden>
+        <div class="ov-card">
+          <p class="ov-title" id="overlayTitle"></p>
+          <p class="ov-sub" id="overlaySub"></p>
+          <div class="ov-actions">
+            <button class="ghost" id="keepBtn" type="button" hidden>继续玩</button>
+            <button class="primary" id="againBtn" type="button">再来一局</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="tip">滑动屏幕或按方向键移动 · 相同数字合并</p>
+</main>
+
+<script src="js/2048.js"></script>
+</body>
+</html>

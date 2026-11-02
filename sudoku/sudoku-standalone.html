@@ -1322,6 +1322,117 @@ button {
   }
 }
 
+/* ---------- Switch game / update bar ---------- */
+
+.switch-game {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.switch-game:hover,
+.switch-game:active {
+  border-color: var(--line-strong);
+  background: #fdf8ec;
+}
+
+.switch-game-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-game-name {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.switch-game-desc {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.switch-game-arrow {
+  flex: none;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 28px);
+  padding: 9px 10px 9px 16px;
+  border: 1px solid rgba(180, 90, 47, 0.3);
+  border-radius: 999px;
+  background: #fffaf0;
+  box-shadow: 0 10px 30px rgba(60, 45, 25, 0.18);
+  animation: update-in 0.24s ease both;
+}
+
+.update-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.update-btn {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff9ee;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.update-btn:active {
+  transform: translateY(1px);
+}
+
+.update-close {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes update-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1433,6 +1544,13 @@ button {
       <h2 id="newTitle">新游戏</h2>
       <p class="sheet-sub">选择难度，开始一局新的数独。</p>
       <div class="diff-list" id="diffList"></div>
+      <a class="switch-game" href="2048.html">
+        <span class="switch-game-main">
+          <span class="switch-game-name">2048</span>
+          <span class="switch-game-desc">数字合并 · 上手更快</span>
+        </span>
+        <span class="switch-game-arrow" aria-hidden="true">→</span>
+      </a>
       <div class="sheet-actions">
         <button class="ghost-btn" id="cancelNewBtn" type="button">继续当前</button>
         <button class="primary-btn" id="startNewBtn" type="button">开始</button>
@@ -1464,6 +1582,12 @@ button {
         <button class="primary-btn" id="leaderCloseBtn" type="button">关闭</button>
       </div>
     </div>
+  </div>
+
+  <div class="update-bar" id="updateBar" hidden>
+    <span class="update-text">有新版本可用</span>
+    <button class="update-btn" id="updateBtn" type="button">刷新</button>
+    <button class="update-close" id="updateDismiss" type="button" aria-label="稍后再说">×</button>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -1791,6 +1915,9 @@ const missingBoxEl = document.getElementById('missingBox');
 const missingRowItemEl = document.getElementById('missingRowItem');
 const missingColItemEl = document.getElementById('missingColItem');
 const missingBoxItemEl = document.getElementById('missingBoxItem');
+const updateBarEl = document.getElementById('updateBar');
+const updateBtnEl = document.getElementById('updateBtn');
+const updateDismissEl = document.getElementById('updateDismiss');
 
 const leaderBtn = document.getElementById('leaderBtn');
 const leaderOverlay = document.getElementById('leaderOverlay');
@@ -3082,12 +3209,30 @@ function init() {
 
   startRun();
   window.setInterval(tick, 1000);
+  setupServiceWorker();
+}
 
-  if ('serviceWorker' in navigator && window.isSecureContext) {
-    navigator.serviceWorker.register('sw.js').catch(() => {
-      /* 离线缓存不可用，不影响游戏 */
-    });
-  }
+let updatePrompted = false;
+
+function setupServiceWorker() {
+  if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+  const hadController = Boolean(navigator.serviceWorker.controller);
+
+  updateBtnEl.addEventListener('click', () => location.reload());
+  updateDismissEl.addEventListener('click', () => {
+    updateBarEl.hidden = true;
+  });
+
+  // 新版本接管后提示刷新，避免用户一直停留在旧页面
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || updatePrompted) return;
+    updatePrompted = true;
+    updateBarEl.hidden = false;
+  });
+
+  navigator.serviceWorker.register('sw.js').catch(() => {
+    /* 离线缓存不可用，不影响游戏 */
+  });
 }
 
 init();

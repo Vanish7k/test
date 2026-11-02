@@ -111,6 +111,13 @@
       <h2 id="newTitle">新游戏</h2>
       <p class="sheet-sub">选择难度，开始一局新的数独。</p>
       <div class="diff-list" id="diffList"></div>
+      <a class="switch-game" href="2048.html">
+        <span class="switch-game-main">
+          <span class="switch-game-name">2048</span>
+          <span class="switch-game-desc">数字合并 · 上手更快</span>
+        </span>
+        <span class="switch-game-arrow" aria-hidden="true">→</span>
+      </a>
       <div class="sheet-actions">
         <button class="ghost-btn" id="cancelNewBtn" type="button">继续当前</button>
         <button class="primary-btn" id="startNewBtn" type="button">开始</button>
@@ -142,6 +149,12 @@
         <button class="primary-btn" id="leaderCloseBtn" type="button">关闭</button>
       </div>
     </div>
+  </div>
+
+  <div class="update-bar" id="updateBar" hidden>
+    <span class="update-text">有新版本可用</span>
+    <button class="update-btn" id="updateBtn" type="button">刷新</button>
+    <button class="update-close" id="updateDismiss" type="button" aria-label="稍后再说">×</button>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
