@@ -102,14 +102,18 @@ button {
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .brand-cn {
+  flex: none;
   font-family: var(--serif);
   font-size: clamp(26px, 7vw, 32px);
   font-weight: 600;
   letter-spacing: 0.14em;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .brand-en {
@@ -117,9 +121,11 @@ button {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .top-actions {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -136,14 +142,17 @@ button {
 }
 
 .pill-btn {
+  flex: none;
   padding: 8px 16px;
   border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .icon-btn {
+  flex: none;
   width: 38px;
   height: 38px;
   border-radius: 50%;
@@ -159,6 +168,40 @@ button {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* 窄屏顶部栏：收紧字号与间距，保证标题、副标题、按钮都单行显示 */
+@media (max-width: 420px) {
+  .topbar {
+    gap: 8px;
+    padding: 2px 2px 0;
+  }
+  .brand {
+    gap: 8px;
+  }
+  .brand-cn {
+    font-size: 24px;
+    letter-spacing: 0.1em;
+  }
+  .brand-en {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+  .top-actions {
+    gap: 6px;
+  }
+  .pill-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .icon {
+    width: 17px;
+    height: 17px;
+  }
 }
 
 .pill-btn:hover,
