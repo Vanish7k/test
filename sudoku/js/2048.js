@@ -15,7 +15,17 @@
   const scoreEl = document.getElementById('score');
   const bestEl = document.getElementById('best');
   const undoBtn = document.getElementById('undoBtn');
-  const restartBtn = document.getElementById('restartBtn');
+  const lbBtn = document.getElementById('lbBtn');
+  const endBtn = document.getElementById('endBtn');
+  const lbEl = document.getElementById('lb');
+  const lbSub = document.getElementById('lbSub');
+  const lbLocal = document.getElementById('lbLocal');
+  const lbGlobal = document.getElementById('lbGlobal');
+  const lbClose = document.getElementById('lbClose');
+  const lbList = document.getElementById('lbList');
+  const lbEmpty = document.getElementById('lbEmpty');
+  const lbMsg = document.getElementById('lbMsg');
+  const lbNote = document.getElementById('lbNote');
   const overlayEl = document.getElementById('overlay');
   const overlayTitle = document.getElementById('overlayTitle');
   const overlaySub = document.getElementById('overlaySub');
@@ -206,6 +216,166 @@
     save();
   }
 
+  // ---------- 结束这一局 ----------
+
+  function finishRun() {
+    if (!overlayEl.hidden || !lbEl.hidden) return;
+    clearTimeout(pendingSpawn);
+    pendingSpawn = 0;
+    flushRemovals();
+    over = true;
+    recordRun();
+    showOverlay('over');
+    save();
+  }
+
+  // ---------- 排行榜 ----------
+
+  let lbScope = 'local';
+  let lbRequest = 0;
+
+  function readLocalScores() {
+    let list = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
+      if (Array.isArray(parsed)) {
+        list = parsed.filter((item) => item && Number(item.score) > 0);
+      }
+    } catch {
+      list = [];
+    }
+    return list.slice(0, 10);
+  }
+
+  function formatDay(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const day = date.getTime();
+    if (day >= start) return '今天';
+    if (day >= start - 86400000) return '昨天';
+    const sameYear = date.getFullYear() === now.getFullYear();
+    const month = date.getMonth() + 1;
+    const d = date.getDate();
+    return sameYear ? `${month}月${d}日` : `${date.getFullYear()}年${month}月${d}日`;
+  }
+
+  function renderLb(entries) {
+    lbList.textContent = '';
+    const hasRows = entries.length > 0;
+    lbList.hidden = !hasRows;
+    lbEmpty.hidden = hasRows;
+    entries.forEach((entry, i) => {
+      const li = document.createElement('li');
+      li.className = 'lb-row';
+
+      const rank = document.createElement('span');
+      rank.className = 'lb-rank' + (i < 3 ? ' is-top' : '');
+      rank.textContent = i < 3 ? ['🥇', '🥈', '🥉'][i] : String(i + 1);
+
+      const body = document.createElement('div');
+      const name = document.createElement('div');
+      name.className = 'lb-name';
+      name.textContent = entry.name;
+      const meta = document.createElement('div');
+      meta.className = 'lb-meta';
+      meta.textContent = [entry.max ? '最大 ' + entry.max : '', entry.when]
+        .filter(Boolean)
+        .join(' · ');
+      body.appendChild(name);
+      body.appendChild(meta);
+
+      const value = document.createElement('span');
+      value.className = 'lb-score';
+      value.textContent = String(entry.score);
+
+      li.appendChild(rank);
+      li.appendChild(body);
+      li.appendChild(value);
+      lbList.appendChild(li);
+    });
+  }
+
+  function showScope(scope) {
+    lbScope = scope;
+    const isLocal = scope === 'local';
+    lbLocal.classList.toggle('is-active', isLocal);
+    lbGlobal.classList.toggle('is-active', !isLocal);
+    lbLocal.setAttribute('aria-selected', String(isLocal));
+    lbGlobal.setAttribute('aria-selected', String(!isLocal));
+    lbSub.textContent = isLocal ? '本机前 10 名' : '全球前 10 名';
+    lbMsg.hidden = true;
+    lbMsg.classList.remove('error');
+    lbNote.hidden = true;
+
+    if (isLocal) {
+      lbRequest += 1;
+      renderLb(
+        readLocalScores().map((entry) => ({
+          name: '本机记录',
+          score: entry.score,
+          max: entry.max,
+          when: formatDay(entry.date),
+        }))
+      );
+      return;
+    }
+    loadGlobalBoard();
+  }
+
+  async function loadGlobalBoard() {
+    if (!remoteReady()) {
+      renderLb([]);
+      lbEmpty.hidden = true;
+      lbMsg.hidden = false;
+      lbMsg.classList.add('error');
+      lbMsg.textContent = '全球榜未配置';
+      return;
+    }
+
+    const seq = (lbRequest += 1);
+    renderLb([]);
+    lbEmpty.hidden = true;
+    lbMsg.hidden = false;
+    lbMsg.classList.remove('error');
+    lbMsg.textContent = '加载中…';
+
+    try {
+      const rows = await RemoteBoard2048.top2048(10, { force: true });
+      if (seq !== lbRequest) return;
+      lbMsg.hidden = true;
+      renderLb(
+        rows.map((row) => ({
+          name: row.nickname,
+          score: row.score,
+          max: row.max_tile,
+          when: formatDay(row.created_at),
+        }))
+      );
+      lbNote.hidden = rows.length > 0;
+    } catch (error) {
+      if (seq !== lbRequest) return;
+      renderLb([]);
+      lbEmpty.hidden = true;
+      lbMsg.hidden = false;
+      lbMsg.classList.add('error');
+      lbMsg.textContent = `加载失败：${error.message}`;
+    }
+  }
+
+  function openLeaderboard() {
+    if (!lbEl.hidden) return;
+    lbEl.hidden = false;
+    showScope(lbScope);
+  }
+
+  function closeLeaderboard() {
+    lbEl.hidden = true;
+    lbRequest += 1;
+  }
+
+
   // ---------- 移动 ----------
 
   function linesFor(dir) {
@@ -226,7 +396,7 @@
   }
 
   function move(dir) {
-    if (over || !overlayEl.hidden) return;
+    if (over || !overlayEl.hidden || !lbEl.hidden) return;
     if (pendingSpawn) {
       flushSpawn();
       save();
@@ -344,7 +514,7 @@
       overlayTitle.textContent = '没有可移动的格子了';
       overlaySub.textContent = '本局得分 ' + score;
       keepBtn.hidden = true;
-      ovGlobal.hidden = !remoteReady();
+      ovGlobal.hidden = !(remoteReady() && score > 0);
       ovMsg.hidden = true;
       ovNick.value = readNickname();
     }
@@ -439,7 +609,7 @@
       } catch {
         /* storage unavailable */
       }
-      setOvMsg('已提交，可在数独页排行榜的 2048 标签查看', false);
+      setOvMsg('已提交，可在本页右上角排行榜查看', false);
     } catch (error) {
       setOvMsg(`提交失败：${error.message}`, true);
     } finally {
@@ -514,6 +684,11 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === 'Escape' && !lbEl.hidden) {
+      event.preventDefault();
+      closeLeaderboard();
+      return;
+    }
     const key = event.key.toLowerCase();
     const dir = {
       arrowleft: 'left',
@@ -552,10 +727,13 @@
   // ---------- 按钮 ----------
 
   undoBtn.addEventListener('click', undo);
-
-  restartBtn.addEventListener('click', () => {
-    if (score > 0 && !window.confirm('重新开始？当前这一局的进度会丢失。')) return;
-    reset();
+  endBtn.addEventListener('click', finishRun);
+  lbBtn.addEventListener('click', openLeaderboard);
+  lbClose.addEventListener('click', closeLeaderboard);
+  lbLocal.addEventListener('click', () => showScope('local'));
+  lbGlobal.addEventListener('click', () => showScope('global'));
+  lbEl.addEventListener('click', (event) => {
+    if (event.target === lbEl) closeLeaderboard();
   });
 
   keepBtn.addEventListener('click', () => {
