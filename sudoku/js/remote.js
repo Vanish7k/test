@@ -52,9 +52,9 @@ const RemoteBoard = (() => {
     if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.rows;
 
     const query = [
-      `select=id,nickname,time,mistakes,created_at,difficulty`,
+      `select=id,nickname,time,mistakes,hints_used,created_at,difficulty`,
       `difficulty=eq.${encodeURIComponent(difficulty)}`,
-      `order=time.asc,mistakes.asc`,
+      `order=time.asc,hints_used.asc,mistakes.asc`,
       `limit=${limit}`,
     ].join('&');
     const res = await request(`${table}?${query}`);

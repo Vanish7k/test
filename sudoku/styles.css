@@ -1000,6 +1000,14 @@ button {
   box-shadow: 0 0 0 3px rgba(180, 90, 47, 0.12);
 }
 
+/* iOS 对小于 16px 的输入框会强制放大页面 */
+@media (max-width: 560px) {
+  .nick-input,
+  .win-global-row .nick-input {
+    font-size: 16px;
+  }
+}
+
 .nick-save {
   flex: none;
   padding: 9px 14px;

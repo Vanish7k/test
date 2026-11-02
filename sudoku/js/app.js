@@ -79,6 +79,8 @@ let sheetDifficulty = 'easy';
 let leaderDifficulty = 'easy';
 let leaderScope = 'local';
 let toastTimer = 0;
+let saveTick = 0;
+let leaderAutoPaused = false;
 
 const PEERS = buildPeerMap();
 
@@ -119,6 +121,24 @@ function formatTime(totalSeconds) {
   const secs = seconds % 60;
   const pad = (value) => String(value).padStart(2, '0');
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(secs)}` : `${pad(minutes)}:${pad(secs)}`;
+}
+
+function elapsedSeconds() {
+  if (!state) return 0;
+  const running = state.runStart ? Date.now() - state.runStart : 0;
+  return Math.floor((state.elapsedMs + running) / 1000);
+}
+
+function startRun() {
+  if (!state || state.runStart) return;
+  if (state.completed || state.paused || modalOpen || state.autoHeld) return;
+  state.runStart = Date.now();
+}
+
+function commitRun() {
+  if (!state || !state.runStart) return;
+  state.elapsedMs += Date.now() - state.runStart;
+  state.runStart = 0;
 }
 
 function buildBoard() {
@@ -213,7 +233,9 @@ function createState(difficulty) {
     notesMode: false,
     mistakes: 0,
     hints: HINT_LIMIT,
-    elapsed: 0,
+    elapsedMs: 0,
+    runStart: Date.now(),
+    autoHeld: false,
     paused: false,
     completed: false,
     undo: [],
@@ -287,7 +309,7 @@ function describeCell(index) {
 
 function updateHud() {
   diffChipEl.textContent = DIFFICULTIES[state.difficulty].label;
-  timerEl.textContent = formatTime(state.elapsed);
+  timerEl.textContent = formatTime(elapsedSeconds());
   mistakesEl.textContent = String(state.mistakes);
   hintsLeftEl.textContent = String(state.hints);
   hintBadgeEl.textContent = String(state.hints);
@@ -504,19 +526,17 @@ function useHint() {
     announce('本局提示次数已用完');
     return;
   }
-  const index = state.selected;
+  let index = state.selected;
+  if (!(index >= 0 && state.puzzle[index] === 0 && state.values[index] !== state.solution[index])) {
+    index = state.values.findIndex(
+      (value, i) => state.puzzle[i] === 0 && value !== state.solution[i]
+    );
+  }
   if (index < 0) {
-    announce('先选择一个空格');
+    announce(state.selected >= 0 ? '这个格子已经填对了' : '当前没有可提示的格子');
     return;
   }
-  if (state.puzzle[index] !== 0) {
-    announce('请选择一个空格');
-    return;
-  }
-  if (state.values[index] === state.solution[index]) {
-    announce('这个格子已经填对了');
-    return;
-  }
+  state.selected = index;
 
   pushUndo();
   const answer = state.solution[index];
@@ -548,6 +568,8 @@ function undo() {
 function setPaused(paused) {
   if (!state || state.completed || modalOpen) return;
   state.paused = paused;
+  if (paused) commitRun();
+  else startRun();
   pauseOverlay.hidden = !paused;
   render();
   save();
@@ -576,8 +598,9 @@ function readBests() {
 function recordBest() {
   const bests = readBests();
   const previous = bests[state.difficulty];
-  if (!previous || state.elapsed < previous) {
-    bests[state.difficulty] = state.elapsed;
+  const time = elapsedSeconds();
+  if (!previous || time < previous) {
+    bests[state.difficulty] = time;
     try {
       localStorage.setItem(BEST_KEY, JSON.stringify(bests));
     } catch {
@@ -656,13 +679,15 @@ function formatLeaderDate(timestamp) {
 }
 
 function finishGame() {
+  commitRun();
   state.completed = true;
   state.paused = false;
   pauseOverlay.hidden = true;
   const isRecord = recordBest();
+  const time = elapsedSeconds();
 
   const entry = {
-    time: state.elapsed,
+    time,
     mistakes: state.mistakes,
     date: Date.now(),
     hintsUsed: HINT_LIMIT - state.hints,
@@ -671,7 +696,7 @@ function finishGame() {
 
   winStatsEl.innerHTML = [
     `<div class="win-stat"><span class="k">难度</span><span class="v">${DIFFICULTIES[state.difficulty].label}</span></div>`,
-    `<div class="win-stat"><span class="k">用时</span><span class="v">${formatTime(state.elapsed)}</span></div>`,
+    `<div class="win-stat"><span class="k">用时</span><span class="v">${formatTime(time)}</span></div>`,
     `<div class="win-stat"><span class="k">错误</span><span class="v">${state.mistakes}</span></div>`,
   ].join('');
   winBestEl.hidden = !isRecord;
@@ -712,6 +737,7 @@ function openNewSheet() {
   if (!state) return;
   sheetDifficulty = state.difficulty;
   updateDiffSelection();
+  commitRun();
   modalOpen = true;
   newOverlay.hidden = false;
   startNewBtn.focus();
@@ -720,6 +746,7 @@ function openNewSheet() {
 function closeNewSheet({ focus = true } = {}) {
   modalOpen = false;
   newOverlay.hidden = true;
+  startRun();
   if (focus) newBtn.focus();
 }
 
@@ -773,7 +800,8 @@ function buildLeaderTabs() {
 }
 
 function openLeaderboard() {
-  if (state && !state.completed && !state.paused) setPaused(true);
+  leaderAutoPaused = Boolean(state && !state.completed && !state.paused);
+  if (leaderAutoPaused) setPaused(true);
   modalOpen = true;
   if (state) leaderDifficulty = state.difficulty;
   renderLeaderboard();
@@ -784,6 +812,11 @@ function openLeaderboard() {
 function closeLeaderboard() {
   modalOpen = false;
   leaderOverlay.hidden = true;
+  if (leaderAutoPaused) {
+    leaderAutoPaused = false;
+    if (state && !state.completed) setPaused(false);
+  }
+  startRun();
   leaderBtn.focus();
 }
 
@@ -908,12 +941,15 @@ async function renderGlobalRows() {
     }
     const fragment = document.createDocumentFragment();
     rows.forEach((row, index) => {
+      const hints = Number(row.hints_used) || 0;
       fragment.appendChild(
         makeRow(index + 1, {
           global: true,
           name: row.nickname,
           time: Number(row.time),
-          meta: `错 ${row.mistakes} · ${formatLeaderDate(new Date(row.created_at).getTime())}`,
+          meta: `错 ${row.mistakes}${hints ? ` · 提示 ${hints}` : ''} · ${formatLeaderDate(
+            new Date(row.created_at).getTime()
+          )}`,
         })
       );
     });
@@ -932,8 +968,10 @@ function shareScore() {
   if (!state || !state.completed) return;
   const text = [
     `🧩 数独 · ${DIFFICULTIES[state.difficulty].label}`,
-    `⏱ 用时 ${formatTime(state.elapsed)}`,
+    `⏱ 用时 ${formatTime(elapsedSeconds())}`,
     `❌ 错误 ${state.mistakes}`,
+    '',
+    'https://vanish7k.github.io/test/sudoku/',
   ].join('\n');
   const fallback = () => {
     const ta = document.createElement('textarea');
@@ -987,7 +1025,7 @@ async function submitGlobalScore() {
     const row = await RemoteBoard.submit({
       nickname: name,
       difficulty,
-      time: state.elapsed,
+      time: elapsedSeconds(),
       mistakes: state.mistakes,
       hintsUsed: HINT_LIMIT - state.hints,
     });
@@ -1009,6 +1047,7 @@ async function submitGlobalScore() {
 
 function save() {
   if (!state) return;
+  commitRun();
   try {
     if (state.completed) {
       localStorage.removeItem(STORE_KEY);
@@ -1024,13 +1063,14 @@ function save() {
         notes: state.notes,
         mistakes: state.mistakes,
         hints: state.hints,
-        elapsed: state.elapsed,
+        elapsed: Math.floor(state.elapsedMs / 1000),
         selected: state.selected,
       })
     );
   } catch {
     /* storage unavailable */
   }
+  startRun();
 }
 
 function loadSaved() {
@@ -1088,7 +1128,9 @@ function loadSaved() {
     notesMode: false,
     mistakes: Math.max(0, Number(data.mistakes) || 0),
     hints: Math.max(0, Number(data.hints) || 0),
-    elapsed: Math.max(0, Number(data.elapsed) || 0),
+    elapsedMs: Math.max(0, Number(data.elapsed) || 0) * 1000,
+    runStart: 0,
+    autoHeld: false,
     paused: false,
     completed: false,
     undo: [],
@@ -1096,10 +1138,17 @@ function loadSaved() {
 }
 
 function tick() {
-  if (!state || state.completed || state.paused || modalOpen) return;
-  state.elapsed += 1;
-  timerEl.textContent = formatTime(state.elapsed);
-  if (state.elapsed % 15 === 0) save();
+  if (!state || state.completed) return;
+  const running = !state.paused && !modalOpen && !state.autoHeld;
+  if (!running) {
+    commitRun();
+    timerEl.textContent = formatTime(elapsedSeconds());
+    return;
+  }
+  startRun();
+  timerEl.textContent = formatTime(elapsedSeconds());
+  saveTick = (saveTick + 1) % 15;
+  if (saveTick === 0) save();
 }
 
 function bindEvents() {
@@ -1152,9 +1201,11 @@ function bindEvents() {
   leaderBtn.addEventListener('click', openLeaderboard);
   leaderCloseBtn.addEventListener('click', closeLeaderboard);
   leaderClearBtn.addEventListener('click', () => {
+    const label = DIFFICULTIES[leaderDifficulty].label;
+    if (!window.confirm(`确定清空「${label}」难度的本机排行榜吗？此操作无法撤销。`)) return;
     clearLeaderboard(leaderDifficulty);
     renderLeaderboard();
-    announce(`已清空${DIFFICULTIES[leaderDifficulty].label}排行榜`);
+    announce(`已清空${label}排行榜`);
   });
 
   newOverlay.addEventListener('click', (event) => {
@@ -1171,6 +1222,11 @@ function bindEvents() {
         event.preventDefault();
         if (!leaderOverlay.hidden) closeLeaderboard();
         else closeNewSheet();
+        return;
+      }
+      if (state && state.paused && !state.completed) {
+        event.preventDefault();
+        setPaused(false);
       }
       return;
     }
@@ -1243,9 +1299,22 @@ function bindEvents() {
     }
   });
 
-  window.addEventListener('pagehide', save);
+  window.addEventListener('pagehide', () => {
+    if (state) state.autoHeld = true;
+    save();
+  });
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') save();
+    if (!state) return;
+    if (document.visibilityState === 'hidden') {
+      state.autoHeld = true;
+      commitRun();
+      save();
+      timerEl.textContent = formatTime(elapsedSeconds());
+    } else if (!state.completed) {
+      state.autoHeld = false;
+      startRun();
+      timerEl.textContent = formatTime(elapsedSeconds());
+    }
   });
 }
 
@@ -1270,7 +1339,14 @@ function init() {
     render();
   }
 
+  startRun();
   window.setInterval(tick, 1000);
+
+  if ('serviceWorker' in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register('sw.js').catch(() => {
+      /* 离线缓存不可用，不影响游戏 */
+    });
+  }
 }
 
 init();
