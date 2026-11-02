@@ -1,5 +1,5 @@
 /* 纸感数独 · 离线缓存 */
-const CACHE = 'paper-sudoku-v5';
+const CACHE = 'paper-sudoku-v6';
 const CORE = [
   './',
   './index.html',
@@ -18,7 +18,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((cache) => cache.addAll(CORE))
+      .then((cache) =>
+        cache.addAll(CORE.map((file) => new Request(file, { cache: 'reload' })))
+      )
       .then(() => self.skipWaiting())
   );
 });
@@ -53,16 +55,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // 资源走「先用缓存、后台更新」，这样更新后的样式下次打开就会生效
   event.respondWith(
-    caches.match(request).then((hit) => {
-      if (hit) return hit;
-      return fetch(request).then((response) => {
-        if (response.ok && response.type === 'basic') {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      });
-    })
+    (async () => {
+      const cached = await caches.match(request);
+      const network = fetch(request)
+        .then((response) => {
+          if (response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => null);
+
+      if (cached) {
+        event.waitUntil(network);
+        return cached;
+      }
+      const response = await network;
+      return response || new Response('', { status: 504, statusText: 'Offline' });
+    })()
   );
 });

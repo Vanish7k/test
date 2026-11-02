@@ -189,6 +189,40 @@ button {
   }
 }
 
+/* 超窄屏（iPhone SE 等 320-360px）：隐藏副标题，进一步收紧 */
+@media (max-width: 360px) {
+  .topbar {
+    gap: 6px;
+    padding: 2px 0 0;
+  }
+  .brand {
+    gap: 6px;
+  }
+  .brand-cn {
+    font-size: 22px;
+    letter-spacing: 0.06em;
+  }
+  .brand-en {
+    display: none;
+  }
+  .top-actions {
+    gap: 4px;
+  }
+  .pill-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+  }
+  .icon {
+    width: 15px;
+    height: 15px;
+  }
+}
+
 .pill-btn:hover,
 .icon-btn:hover {
   border-color: var(--line-strong);
