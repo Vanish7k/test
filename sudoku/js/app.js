@@ -712,6 +712,83 @@ function formatLeaderDate(timestamp) {
   return `${date.getFullYear()}-${mm}-${dd}`;
 }
 
+/**
+ * 庆祝动画：五彩纸屑爆裂 + 彩带飘落 + 亮点散开
+ * 仅用 DOM + CSS keyframes，不引入额外依赖
+ */
+function celebrateVictory() {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduced) return;
+
+  const COLORS = ['#edc22e', '#f67c5f', '#77c2e3', '#96ceb4', '#d98cb3', '#6c5ce7', '#ff9f43', '#26de81'];
+  const rand = (min, max) => Math.random() * (max - min) + min;
+
+  const layer = document.createElement('div');
+  layer.className = 'celebrate-layer';
+  document.body.appendChild(layer);
+
+  // 1. 中心爆裂的五彩纸屑（40 片）
+  const burstCount = 40;
+  for (let i = 0; i < burstCount; i += 1) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti burst';
+    const angle = (Math.PI * 2 * i) / burstCount + rand(-0.2, 0.2);
+    const dist = rand(180, 420);
+    piece.style.setProperty('--cx', `${Math.cos(angle) * dist}px`);
+    piece.style.setProperty('--cy', `${Math.sin(angle) * dist}px`);
+    piece.style.setProperty('--crx', `${rand(-720, 720)}deg`);
+    piece.style.setProperty('--cd', `${rand(900, 1600)}ms`);
+    piece.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+    piece.style.width = `${rand(6, 12)}px`;
+    piece.style.height = `${rand(8, 18)}px`;
+    if (Math.random() < 0.3) piece.style.borderRadius = '50%';
+    layer.appendChild(piece);
+  }
+
+  // 2. 从顶部飘落的彩带（30 片）
+  const fallCount = 30;
+  for (let i = 0; i < fallCount; i += 1) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti fall';
+    piece.style.setProperty('--fx', `${rand(0, 100)}%`);
+    piece.style.setProperty('--fsway', `${rand(-80, 80)}px`);
+    piece.style.setProperty('--frx', `${rand(360, 1440)}deg`);
+    piece.style.setProperty('--fd', `${rand(2400, 4200)}ms`);
+    piece.style.setProperty('--fdelay', `${rand(0, 800)}ms`);
+    piece.style.background = COLORS[Math.floor(Math.random() * COLORS.length)];
+    piece.style.width = `${rand(8, 14)}px`;
+    piece.style.height = `${rand(12, 22)}px`;
+    layer.appendChild(piece);
+  }
+
+  // 3. 亮点光环（20 颗）
+  const sparkleCount = 20;
+  for (let i = 0; i < sparkleCount; i += 1) {
+    const sp = document.createElement('div');
+    sp.className = 'sparkle';
+    const angle = (Math.PI * 2 * i) / sparkleCount;
+    const dist = rand(100, 260);
+    sp.style.setProperty('--sx', `${Math.cos(angle) * dist}px`);
+    sp.style.setProperty('--sy', `${Math.sin(angle) * dist}px`);
+    sp.style.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    sp.style.animationDelay = `${rand(0, 200)}ms`;
+    layer.appendChild(sp);
+  }
+
+  // 4. 给胜利卡片加脉冲 + 弹跳（如果存在）
+  const card = document.querySelector('#winOverlay .overlay-card');
+  if (card) {
+    card.classList.add('celebrate-bounce');
+  }
+
+  // 动画全部结束后清理容器
+  const longest = 5000; // 彩带飘落最长 4200ms + 缓冲
+  setTimeout(() => {
+    layer.remove();
+    if (card) card.classList.remove('celebrate-bounce');
+  }, longest);
+}
+
 function finishGame() {
   commitRun();
   state.completed = true;
@@ -750,6 +827,8 @@ function finishGame() {
     winRankEl.hidden = true;
   }
   winOverlay.hidden = false;
+
+  celebrateVictory();
 
   render();
   save();
@@ -1513,3 +1592,24 @@ function setupServiceWorker() {
 }
 
 init();
+
+(function hideAppLoader() {
+  const loader = document.getElementById('appLoader');
+  if (!loader) return;
+  const start = performance.now();
+  const MIN = 800, MAX = 3000;
+  const done = () => {
+    const wait = Math.max(0, MIN - (performance.now() - start));
+    setTimeout(() => {
+      loader.hidden = true;
+      loader.setAttribute('aria-hidden', 'true');
+      setTimeout(() => loader.remove(), 500);
+    }, wait);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', done, { once: true });
+  } else {
+    done();
+  }
+  setTimeout(done, MAX);
+})();

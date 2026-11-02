@@ -1435,3 +1435,221 @@ button {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------- 启动 Loader（数独） ---------- */
+
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background:
+    radial-gradient(900px 620px at 50% -16%, #fffaee 0%, rgba(255, 250, 238, 0) 58%),
+    radial-gradient(720px 520px at 94% 108%, #f2e5cf 0%, rgba(242, 229, 207, 0) 62%),
+    #ebe7dd;
+  transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+.app-loader[hidden] {
+  display: flex !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.loader-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 22px);
+  grid-template-rows: repeat(3, 22px);
+  gap: 3px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255, 252, 244, 0.75);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 2px 10px rgba(180, 169, 143, 0.18);
+}
+
+.loader-grid .lc {
+  display: grid;
+  place-items: center;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45a2f;
+  background: #fffcf4;
+  border-radius: 3px;
+  opacity: 0;
+  transform: scale(0.3);
+  animation: loader-cell-pop 0.42s cubic-bezier(0.2, 1.3, 0.4, 1) forwards;
+}
+
+@keyframes loader-cell-pop {
+  0%   { opacity: 0; transform: scale(0.3); }
+  60%  { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.loader-grid .lc:nth-child(1) { animation-delay: 0.00s; }
+.loader-grid .lc:nth-child(2) { animation-delay: 0.07s; }
+.loader-grid .lc:nth-child(3) { animation-delay: 0.14s; }
+.loader-grid .lc:nth-child(4) { animation-delay: 0.21s; }
+.loader-grid .lc:nth-child(5) { animation-delay: 0.28s; }
+.loader-grid .lc:nth-child(6) { animation-delay: 0.35s; }
+.loader-grid .lc:nth-child(7) { animation-delay: 0.42s; }
+.loader-grid .lc:nth-child(8) { animation-delay: 0.49s; }
+.loader-grid .lc:nth-child(9) { animation-delay: 0.56s; }
+
+.loader-brands {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  animation: loader-fade-in 0.6s ease 0.7s forwards;
+}
+
+.loader-brands .lb-cn {
+  font-family: "Iowan Old Style", "Songti SC", "Noto Serif SC", serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: #3f3a30;
+}
+
+.loader-brands .lb-en {
+  font-size: 9px;
+  letter-spacing: 0.32em;
+  color: #9c9079;
+  text-transform: uppercase;
+}
+
+@keyframes loader-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- 庆祝动画 ---------- */
+
+.celebrate-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 14px;
+  margin-left: -5px;
+  margin-top: -7px;
+  border-radius: 2px;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes confetti-burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--cx), var(--cy)) scale(1) rotate(var(--crx));
+  }
+}
+
+.confetti.burst {
+  animation: confetti-burst var(--cd, 1200ms) cubic-bezier(0.16, 0.84, 0.44, 1) forwards;
+}
+
+.confetti.fall {
+  top: -20px;
+  left: var(--fx, 50%);
+  margin-left: 0;
+  margin-top: 0;
+  animation: confetti-fall var(--fd, 3200ms) cubic-bezier(0.22, 0.61, 0.36, 1) var(--fdelay, 0ms) forwards;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fsway, 0px), 110vh) rotate(var(--frx, 720deg));
+  }
+}
+
+.sparkle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, currentColor 0%, transparent 70%);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes sparkle-ring {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.3);
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--sx), var(--sy)) scale(1.2);
+  }
+}
+
+.sparkle {
+  animation: sparkle-ring 900ms ease-out forwards;
+}
+
+/* 胜利卡片的脉冲光环 */
+@keyframes victory-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(237, 194, 46, 0.55);
+  }
+  60% {
+    box-shadow: 0 0 0 28px rgba(237, 194, 46, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(237, 194, 46, 0);
+  }
+}
+
+.celebrate-pulse {
+  animation: victory-pulse 900ms ease-out 3;
+}
+
+/* 卡片进入后再弹一下 */
+@keyframes victory-bounce {
+  0% { transform: translateY(0); }
+  40% { transform: translateY(-6px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+.celebrate-bounce {
+  animation: rise 0.24s ease both, victory-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.24s both;
+}
