@@ -865,6 +865,144 @@ button {
 
 /* ---------- Leaderboard ---------- */
 
+.leader-scope {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.scope-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.scope-btn.active {
+  background: #f1e6d2;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.scope-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.nick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nick-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.nick-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbf7ee;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.nick-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(180, 90, 47, 0.12);
+}
+
+.nick-save {
+  flex: none;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.leader-row.global {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+
+.leader-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leader-name .n {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader-name .m {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.leader-error {
+  color: var(--error);
+}
+
+.win-global {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.win-global-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.win-global-row .nick-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.win-global-row .ghost-btn {
+  flex: none;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.win-global-msg {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--teal);
+}
+
+.win-global-msg.error {
+  color: var(--error);
+}
+
+
+
 .leader-head {
   display: grid;
   gap: 4px;
@@ -980,6 +1118,10 @@ button {
 
 .leader-actions {
   justify-content: space-between;
+}
+
+.leader-actions #leaderCloseBtn {
+  margin-left: auto;
 }
 
 /* ---------- Desktop ---------- */

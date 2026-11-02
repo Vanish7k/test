@@ -875,6 +875,144 @@ button {
 
 /* ---------- Leaderboard ---------- */
 
+.leader-scope {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.scope-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.scope-btn.active {
+  background: #f1e6d2;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.scope-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.nick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nick-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.nick-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbf7ee;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.nick-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(180, 90, 47, 0.12);
+}
+
+.nick-save {
+  flex: none;
+  padding: 9px 14px;
+  font-size: 13px;
+}
+
+.leader-row.global {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+
+.leader-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.leader-name .n {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leader-name .m {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.leader-error {
+  color: var(--error);
+}
+
+.win-global {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.win-global-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.win-global-row .nick-input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.win-global-row .ghost-btn {
+  flex: none;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.win-global-msg {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--teal);
+}
+
+.win-global-msg.error {
+  color: var(--error);
+}
+
+
+
 .leader-head {
   display: grid;
   gap: 4px;
@@ -992,6 +1130,10 @@ button {
   justify-content: space-between;
 }
 
+.leader-actions #leaderCloseBtn {
+  margin-left: auto;
+}
+
 /* ---------- Desktop ---------- */
 
 @media (min-width: 600px) {
@@ -1076,6 +1218,13 @@ button {
           <div class="win-stats" id="winStats"></div>
           <p class="win-best" id="winBest" hidden>新的最佳纪录</p>
           <p class="win-rank" id="winRank" hidden></p>
+          <div class="win-global" id="winGlobal" hidden>
+            <div class="win-global-row">
+              <input class="nick-input" id="winNick" type="text" maxlength="12" autocomplete="off" placeholder="昵称（2-12 字）" />
+              <button class="ghost-btn" id="winSubmitBtn" type="button">提交全球榜</button>
+            </div>
+            <p class="win-global-msg" id="winGlobalMsg" hidden></p>
+          </div>
           <div class="win-actions">
             <button class="primary-btn" id="winNewBtn" type="button">再来一局</button>
             <button class="ghost-btn" id="winShareBtn" type="button">分享成绩</button>
@@ -1128,10 +1277,19 @@ button {
       <div class="sheet-grabber" aria-hidden="true"></div>
       <div class="leader-head">
         <h2 id="leaderTitle">排行榜</h2>
-        <p class="sheet-sub">本机记录的通关成绩，按用时从快到慢</p>
+        <p class="sheet-sub">按用时从快到慢，每个难度取前 10</p>
       </div>
-      <div class="leader-tabs" id="leaderTabs" role="tablist"></div>
-      <div class="leader-list" id="leaderList" role="list"></div>
+      <div class="leader-scope" id="leaderScope" role="tablist" aria-label="榜单范围">
+        <button class="scope-btn active" data-scope="local" type="button" role="tab" aria-selected="true">本机</button>
+        <button class="scope-btn" data-scope="global" type="button" role="tab" aria-selected="false" id="scopeGlobalBtn">全球</button>
+      </div>
+      <div class="nick-row" id="nickRow" hidden>
+        <label class="nick-label" for="nickInput">昵称</label>
+        <input class="nick-input" id="nickInput" type="text" maxlength="12" autocomplete="off" placeholder="2-12 个字符" />
+        <button class="ghost-btn nick-save" id="nickSaveBtn" type="button">保存</button>
+      </div>
+      <div class="leader-tabs" id="leaderTabs" role="tablist" aria-label="难度"></div>
+      <div class="leader-list" id="leaderList" role="list" aria-live="polite"></div>
       <p class="leader-empty" id="leaderEmpty" hidden>还没有记录，完成一局来上榜吧</p>
       <div class="sheet-actions leader-actions">
         <button class="ghost-btn" id="leaderClearBtn" type="button">清空当前难度</button>
@@ -1143,6 +1301,23 @@ button {
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <p class="sr-only" id="live" aria-live="polite"></p>
 
+  <script>
+/**
+ * 全局排行榜配置（Supabase）
+ *
+ * 填好下面两项后，游戏里的“全球”榜才会启用；留空则只用本机排行榜。
+ * 这两项都是公开信息，可以放在前端代码里 —— 真正的权限由 Supabase 的 RLS 策略控制。
+ *
+ * supabaseUrl:    项目设置 → API → Project URL，形如 https://abcdefgh.supabase.co
+ * supabaseAnonKey: 项目设置 → API → anon public key
+ */
+window.SUDOKU_CONFIG = {
+  supabaseUrl: '',
+  supabaseAnonKey: '',
+  table: 'sudoku_scores',
+};
+
+</script>
   <script>
 /**
  * Sudoku engine: randomized full-grid generation, unique-solution digging,
@@ -1299,6 +1474,98 @@ function generatePuzzle(difficulty = 'medium') {
 
 </script>
   <script>
+/**
+ * Supabase REST 客户端（全球排行榜）
+ * 不引入 SDK，直接走 PostgREST 接口，避免额外体积。
+ */
+const RemoteBoard = (() => {
+  const cfg = window.SUDOKU_CONFIG || {};
+  const url = String(cfg.supabaseUrl || '').replace(/\/+$/, '');
+  const key = String(cfg.supabaseAnonKey || '');
+  const table = cfg.table || 'sudoku_scores';
+  const enabled = Boolean(url && key);
+  const cache = new Map();
+  const CACHE_MS = 60_000;
+
+  function headers(extra) {
+    return Object.assign(
+      {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json',
+      },
+      extra || {}
+    );
+  }
+
+  async function request(path, options = {}, timeout = 9000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    try {
+      const res = await fetch(`${url}/rest/v1/${path}`, {
+        ...options,
+        headers: headers(options.headers),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}${body ? ` ${body.slice(0, 120)}` : ''}`);
+      }
+      return res;
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('连接超时');
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function top(difficulty, limit = 10, { force = false } = {}) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const cached = cache.get(difficulty);
+    if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.rows;
+
+    const query = [
+      `select=id,nickname,time,mistakes,created_at,difficulty`,
+      `difficulty=eq.${encodeURIComponent(difficulty)}`,
+      `order=time.asc,mistakes.asc`,
+      `limit=${limit}`,
+    ].join('&');
+    const res = await request(`${table}?${query}`);
+    const rows = await res.json();
+    const list = Array.isArray(rows) ? rows : [];
+    cache.set(difficulty, { at: Date.now(), rows: list });
+    return list;
+  }
+
+  async function submit(entry) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const res = await request(table, {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        nickname: entry.nickname,
+        difficulty: entry.difficulty,
+        time: entry.time,
+        mistakes: entry.mistakes,
+        hints_used: entry.hintsUsed || 0,
+      }),
+    });
+    const rows = await res.json().catch(() => []);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    cache.delete(entry.difficulty);
+    return row || {};
+  }
+
+  function clearCache() {
+    cache.clear();
+  }
+
+  return { enabled, top, submit, clearCache };
+})();
+
+</script>
+  <script>
 const DIFFICULTIES = {
   easy: { label: '简单', desc: '轻松热身' },
   medium: { label: '中等', desc: '动脑时刻' },
@@ -1309,6 +1576,7 @@ const DIFFICULTIES = {
 const STORE_KEY = 'paper-sudoku:v1';
 const BEST_KEY = 'paper-sudoku:bests:v1';
 const LEADERBOARD_KEY = 'paper-sudoku:leaderboard:v1';
+const NICK_KEY = 'paper-sudoku:nickname:v1';
 const LEADERBOARD_MAX = 10;
 const HINT_LIMIT = 3;
 
@@ -1353,6 +1621,15 @@ const leaderCloseBtn = document.getElementById('leaderCloseBtn');
 const leaderClearBtn = document.getElementById('leaderClearBtn');
 const winRankEl = document.getElementById('winRank');
 const winShareBtn = document.getElementById('winShareBtn');
+const winGlobalEl = document.getElementById('winGlobal');
+const winNickEl = document.getElementById('winNick');
+const winSubmitBtn = document.getElementById('winSubmitBtn');
+const winGlobalMsgEl = document.getElementById('winGlobalMsg');
+const leaderScopeEl = document.getElementById('leaderScope');
+const scopeGlobalBtn = document.getElementById('scopeGlobalBtn');
+const nickRowEl = document.getElementById('nickRow');
+const nickInputEl = document.getElementById('nickInput');
+const nickSaveBtn = document.getElementById('nickSaveBtn');
 
 const cells = [];
 const padButtons = [];
@@ -1361,6 +1638,7 @@ let state = null;
 let modalOpen = false;
 let sheetDifficulty = 'easy';
 let leaderDifficulty = 'easy';
+let leaderScope = 'local';
 let toastTimer = 0;
 
 const PEERS = buildPeerMap();
@@ -1896,6 +2174,14 @@ function finishGame() {
     `<div class="win-stat"><span class="k">错误</span><span class="v">${state.mistakes}</span></div>`,
   ].join('');
   winBestEl.hidden = !isRecord;
+  winGlobalMsgEl.hidden = true;
+  winGlobalMsgEl.textContent = '';
+  winSubmitBtn.disabled = false;
+  winGlobalEl.hidden = !RemoteBoard.enabled;
+  if (RemoteBoard.enabled) {
+    winNickEl.value = readNickname();
+    winSubmitBtn.textContent = '提交全球榜';
+  }
   if (rank > 0 && rank <= LEADERBOARD_MAX) {
     winRankEl.hidden = false;
     winRankEl.textContent =
@@ -1934,6 +2220,37 @@ function closeNewSheet({ focus = true } = {}) {
   modalOpen = false;
   newOverlay.hidden = true;
   if (focus) newBtn.focus();
+}
+
+function readNickname() {
+  try {
+    return (localStorage.getItem(NICK_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function saveNickname(value) {
+  const name = normalizeNick(value);
+  try {
+    if (name) localStorage.setItem(NICK_KEY, name);
+    else localStorage.removeItem(NICK_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+  return name;
+}
+
+function normalizeNick(value) {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 12);
+}
+
+function nickIsValid(name) {
+  return name.length >= 2 && name.length <= 12;
 }
 
 function buildLeaderTabs() {
@@ -1976,17 +2293,79 @@ function rankLabel(rank) {
   return String(rank);
 }
 
+let leaderRequestToken = 0;
+
 function renderLeaderboard() {
+  for (const btn of leaderScopeEl.children) {
+    const active = btn.dataset.scope === leaderScope;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  }
+  scopeGlobalBtn.disabled = !RemoteBoard.enabled;
+  scopeGlobalBtn.title = RemoteBoard.enabled ? '所有玩家共享的成绩' : '未配置 Supabase';
+  if (!RemoteBoard.enabled && leaderScope === 'global') leaderScope = 'local';
+
+  nickRowEl.hidden = leaderScope !== 'global';
+  leaderClearBtn.hidden = leaderScope === 'global';
+  if (leaderScope === 'global') nickInputEl.value = readNickname();
+
   for (const tab of leaderTabsEl.children) {
     const active = tab.dataset.difficulty === leaderDifficulty;
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', String(active));
   }
 
+  leaderRequestToken += 1;
+  if (leaderScope === 'global') {
+    renderGlobalRows();
+  } else {
+    renderLocalRows();
+  }
+}
+
+function makeRow(rank, detail) {
+  const row = document.createElement('div');
+  row.className = `leader-row rank-${Math.min(rank, 4)}${detail.global ? ' global' : ''}`;
+  row.setAttribute('role', 'listitem');
+
+  const rankEl = document.createElement('span');
+  rankEl.className = 'leader-rank';
+  rankEl.textContent = rankLabel(rank);
+  row.appendChild(rankEl);
+
+  if (detail.global) {
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'leader-name';
+    const nickLine = document.createElement('span');
+    nickLine.className = 'n';
+    nickLine.textContent = detail.name;
+    const metaLine = document.createElement('span');
+    metaLine.className = 'm';
+    metaLine.textContent = detail.meta;
+    nameWrap.append(nickLine, metaLine);
+    row.appendChild(nameWrap);
+  }
+
+  const timeEl = document.createElement('span');
+  timeEl.className = 'leader-time';
+  timeEl.textContent = formatTime(detail.time);
+  row.appendChild(timeEl);
+
+  if (!detail.global) {
+    const metaEl = document.createElement('span');
+    metaEl.className = 'leader-meta';
+    metaEl.textContent = detail.meta;
+    row.appendChild(metaEl);
+  }
+
+  return row;
+}
+
+function renderLocalRows() {
   const entries = (readLeaderboard()[leaderDifficulty] || []).slice(0, LEADERBOARD_MAX);
   leaderListEl.innerHTML = '';
-
   if (entries.length === 0) {
+    leaderEmptyEl.textContent = '还没有记录，完成一局来上榜吧';
     leaderEmptyEl.hidden = false;
     leaderClearBtn.disabled = true;
     return;
@@ -1996,27 +2375,56 @@ function renderLeaderboard() {
 
   const fragment = document.createDocumentFragment();
   entries.forEach((entry, index) => {
-    const rank = index + 1;
-    const row = document.createElement('div');
-    row.className = 'leader-row' + (rank <= 3 ? ` rank-${rank}` : '');
-    row.setAttribute('role', 'listitem');
-
-    const rankEl = document.createElement('span');
-    rankEl.className = 'leader-rank';
-    rankEl.textContent = rankLabel(rank);
-
-    const timeEl = document.createElement('span');
-    timeEl.className = 'leader-time';
-    timeEl.textContent = formatTime(entry.time);
-
-    const metaEl = document.createElement('span');
-    metaEl.className = 'leader-meta';
-    metaEl.textContent = `错 ${entry.mistakes} · ${formatLeaderDate(entry.date)}`;
-
-    row.append(rankEl, timeEl, metaEl);
-    fragment.appendChild(row);
+    fragment.appendChild(
+      makeRow(index + 1, {
+        time: entry.time,
+        meta: `错 ${entry.mistakes} · ${formatLeaderDate(entry.date)}`,
+      })
+    );
   });
   leaderListEl.appendChild(fragment);
+}
+
+async function renderGlobalRows() {
+  const token = ++leaderRequestToken;
+  const difficulty = leaderDifficulty;
+  leaderListEl.innerHTML = '';
+  leaderEmptyEl.hidden = true;
+
+  const loading = document.createElement('p');
+  loading.className = 'leader-empty';
+  loading.textContent = '加载全球榜…';
+  leaderListEl.appendChild(loading);
+
+  try {
+    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX);
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    if (rows.length === 0) {
+      leaderEmptyEl.textContent = '全球榜还没有记录，来做第一个上榜的人';
+      leaderEmptyEl.hidden = false;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    rows.forEach((row, index) => {
+      fragment.appendChild(
+        makeRow(index + 1, {
+          global: true,
+          name: row.nickname,
+          time: Number(row.time),
+          meta: `错 ${row.mistakes} · ${formatLeaderDate(new Date(row.created_at).getTime())}`,
+        })
+      );
+    });
+    leaderListEl.appendChild(fragment);
+  } catch (error) {
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    const fail = document.createElement('p');
+    fail.className = 'leader-empty leader-error';
+    fail.textContent = `全球榜加载失败：${error.message}`;
+    leaderListEl.appendChild(fail);
+  }
 }
 
 function shareScore() {
@@ -2051,6 +2459,50 @@ function shareScore() {
     );
   } else {
     fallback();
+  }
+}
+
+function setWinGlobalMsg(message, isError) {
+  winGlobalMsgEl.hidden = false;
+  winGlobalMsgEl.textContent = message;
+  winGlobalMsgEl.classList.toggle('error', Boolean(isError));
+}
+
+async function submitGlobalScore() {
+  if (!state || !state.completed || !RemoteBoard.enabled) return;
+  if (winSubmitBtn.disabled) return;
+
+  const name = saveNickname(winNickEl.value);
+  winNickEl.value = name;
+  if (!nickIsValid(name)) {
+    setWinGlobalMsg('昵称需要 2-12 个字符', true);
+    return;
+  }
+
+  winSubmitBtn.disabled = true;
+  setWinGlobalMsg('提交中…', false);
+  const difficulty = state.difficulty;
+  try {
+    const row = await RemoteBoard.submit({
+      nickname: name,
+      difficulty,
+      time: state.elapsed,
+      mistakes: state.mistakes,
+      hintsUsed: HINT_LIMIT - state.hints,
+    });
+    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX, { force: true });
+    const index = rows.findIndex((item) => String(item.id) === String(row.id));
+    if (index >= 0) {
+      setWinGlobalMsg(`已上榜，全球第 ${index + 1} 名 🎉`, false);
+      winSubmitBtn.textContent = '已提交';
+    } else {
+      setWinGlobalMsg('已提交，暂未进入前 10', false);
+      winSubmitBtn.textContent = '再次提交';
+      winSubmitBtn.disabled = false;
+    }
+  } catch (error) {
+    setWinGlobalMsg(`提交失败：${error.message}`, true);
+    winSubmitBtn.disabled = false;
   }
 }
 
@@ -2176,6 +2628,25 @@ function bindEvents() {
     winOverlay.hidden = true;
   });
   winShareBtn.addEventListener('click', shareScore);
+  winSubmitBtn.addEventListener('click', submitGlobalScore);
+
+  leaderScopeEl.addEventListener('click', (event) => {
+    const btn = event.target.closest('.scope-btn');
+    if (!btn || btn.disabled) return;
+    leaderScope = btn.dataset.scope === 'global' ? 'global' : 'local';
+    renderLeaderboard();
+  });
+
+  nickSaveBtn.addEventListener('click', () => {
+    const name = saveNickname(nickInputEl.value);
+    nickInputEl.value = name;
+    if (!nickIsValid(name)) {
+      announce('昵称需要 2-12 个字符');
+      return;
+    }
+    announce('昵称已保存');
+    renderLeaderboard();
+  });
 
   leaderBtn.addEventListener('click', openLeaderboard);
   leaderCloseBtn.addEventListener('click', closeLeaderboard);

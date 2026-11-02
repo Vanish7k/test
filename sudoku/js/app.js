@@ -8,6 +8,7 @@ const DIFFICULTIES = {
 const STORE_KEY = 'paper-sudoku:v1';
 const BEST_KEY = 'paper-sudoku:bests:v1';
 const LEADERBOARD_KEY = 'paper-sudoku:leaderboard:v1';
+const NICK_KEY = 'paper-sudoku:nickname:v1';
 const LEADERBOARD_MAX = 10;
 const HINT_LIMIT = 3;
 
@@ -52,6 +53,15 @@ const leaderCloseBtn = document.getElementById('leaderCloseBtn');
 const leaderClearBtn = document.getElementById('leaderClearBtn');
 const winRankEl = document.getElementById('winRank');
 const winShareBtn = document.getElementById('winShareBtn');
+const winGlobalEl = document.getElementById('winGlobal');
+const winNickEl = document.getElementById('winNick');
+const winSubmitBtn = document.getElementById('winSubmitBtn');
+const winGlobalMsgEl = document.getElementById('winGlobalMsg');
+const leaderScopeEl = document.getElementById('leaderScope');
+const scopeGlobalBtn = document.getElementById('scopeGlobalBtn');
+const nickRowEl = document.getElementById('nickRow');
+const nickInputEl = document.getElementById('nickInput');
+const nickSaveBtn = document.getElementById('nickSaveBtn');
 
 const cells = [];
 const padButtons = [];
@@ -60,6 +70,7 @@ let state = null;
 let modalOpen = false;
 let sheetDifficulty = 'easy';
 let leaderDifficulty = 'easy';
+let leaderScope = 'local';
 let toastTimer = 0;
 
 const PEERS = buildPeerMap();
@@ -595,6 +606,14 @@ function finishGame() {
     `<div class="win-stat"><span class="k">错误</span><span class="v">${state.mistakes}</span></div>`,
   ].join('');
   winBestEl.hidden = !isRecord;
+  winGlobalMsgEl.hidden = true;
+  winGlobalMsgEl.textContent = '';
+  winSubmitBtn.disabled = false;
+  winGlobalEl.hidden = !RemoteBoard.enabled;
+  if (RemoteBoard.enabled) {
+    winNickEl.value = readNickname();
+    winSubmitBtn.textContent = '提交全球榜';
+  }
   if (rank > 0 && rank <= LEADERBOARD_MAX) {
     winRankEl.hidden = false;
     winRankEl.textContent =
@@ -633,6 +652,37 @@ function closeNewSheet({ focus = true } = {}) {
   modalOpen = false;
   newOverlay.hidden = true;
   if (focus) newBtn.focus();
+}
+
+function readNickname() {
+  try {
+    return (localStorage.getItem(NICK_KEY) || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function saveNickname(value) {
+  const name = normalizeNick(value);
+  try {
+    if (name) localStorage.setItem(NICK_KEY, name);
+    else localStorage.removeItem(NICK_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+  return name;
+}
+
+function normalizeNick(value) {
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 12);
+}
+
+function nickIsValid(name) {
+  return name.length >= 2 && name.length <= 12;
 }
 
 function buildLeaderTabs() {
@@ -675,17 +725,79 @@ function rankLabel(rank) {
   return String(rank);
 }
 
+let leaderRequestToken = 0;
+
 function renderLeaderboard() {
+  for (const btn of leaderScopeEl.children) {
+    const active = btn.dataset.scope === leaderScope;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  }
+  scopeGlobalBtn.disabled = !RemoteBoard.enabled;
+  scopeGlobalBtn.title = RemoteBoard.enabled ? '所有玩家共享的成绩' : '未配置 Supabase';
+  if (!RemoteBoard.enabled && leaderScope === 'global') leaderScope = 'local';
+
+  nickRowEl.hidden = leaderScope !== 'global';
+  leaderClearBtn.hidden = leaderScope === 'global';
+  if (leaderScope === 'global') nickInputEl.value = readNickname();
+
   for (const tab of leaderTabsEl.children) {
     const active = tab.dataset.difficulty === leaderDifficulty;
     tab.classList.toggle('active', active);
     tab.setAttribute('aria-selected', String(active));
   }
 
+  leaderRequestToken += 1;
+  if (leaderScope === 'global') {
+    renderGlobalRows();
+  } else {
+    renderLocalRows();
+  }
+}
+
+function makeRow(rank, detail) {
+  const row = document.createElement('div');
+  row.className = `leader-row rank-${Math.min(rank, 4)}${detail.global ? ' global' : ''}`;
+  row.setAttribute('role', 'listitem');
+
+  const rankEl = document.createElement('span');
+  rankEl.className = 'leader-rank';
+  rankEl.textContent = rankLabel(rank);
+  row.appendChild(rankEl);
+
+  if (detail.global) {
+    const nameWrap = document.createElement('span');
+    nameWrap.className = 'leader-name';
+    const nickLine = document.createElement('span');
+    nickLine.className = 'n';
+    nickLine.textContent = detail.name;
+    const metaLine = document.createElement('span');
+    metaLine.className = 'm';
+    metaLine.textContent = detail.meta;
+    nameWrap.append(nickLine, metaLine);
+    row.appendChild(nameWrap);
+  }
+
+  const timeEl = document.createElement('span');
+  timeEl.className = 'leader-time';
+  timeEl.textContent = formatTime(detail.time);
+  row.appendChild(timeEl);
+
+  if (!detail.global) {
+    const metaEl = document.createElement('span');
+    metaEl.className = 'leader-meta';
+    metaEl.textContent = detail.meta;
+    row.appendChild(metaEl);
+  }
+
+  return row;
+}
+
+function renderLocalRows() {
   const entries = (readLeaderboard()[leaderDifficulty] || []).slice(0, LEADERBOARD_MAX);
   leaderListEl.innerHTML = '';
-
   if (entries.length === 0) {
+    leaderEmptyEl.textContent = '还没有记录，完成一局来上榜吧';
     leaderEmptyEl.hidden = false;
     leaderClearBtn.disabled = true;
     return;
@@ -695,27 +807,56 @@ function renderLeaderboard() {
 
   const fragment = document.createDocumentFragment();
   entries.forEach((entry, index) => {
-    const rank = index + 1;
-    const row = document.createElement('div');
-    row.className = 'leader-row' + (rank <= 3 ? ` rank-${rank}` : '');
-    row.setAttribute('role', 'listitem');
-
-    const rankEl = document.createElement('span');
-    rankEl.className = 'leader-rank';
-    rankEl.textContent = rankLabel(rank);
-
-    const timeEl = document.createElement('span');
-    timeEl.className = 'leader-time';
-    timeEl.textContent = formatTime(entry.time);
-
-    const metaEl = document.createElement('span');
-    metaEl.className = 'leader-meta';
-    metaEl.textContent = `错 ${entry.mistakes} · ${formatLeaderDate(entry.date)}`;
-
-    row.append(rankEl, timeEl, metaEl);
-    fragment.appendChild(row);
+    fragment.appendChild(
+      makeRow(index + 1, {
+        time: entry.time,
+        meta: `错 ${entry.mistakes} · ${formatLeaderDate(entry.date)}`,
+      })
+    );
   });
   leaderListEl.appendChild(fragment);
+}
+
+async function renderGlobalRows() {
+  const token = ++leaderRequestToken;
+  const difficulty = leaderDifficulty;
+  leaderListEl.innerHTML = '';
+  leaderEmptyEl.hidden = true;
+
+  const loading = document.createElement('p');
+  loading.className = 'leader-empty';
+  loading.textContent = '加载全球榜…';
+  leaderListEl.appendChild(loading);
+
+  try {
+    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX);
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    if (rows.length === 0) {
+      leaderEmptyEl.textContent = '全球榜还没有记录，来做第一个上榜的人';
+      leaderEmptyEl.hidden = false;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    rows.forEach((row, index) => {
+      fragment.appendChild(
+        makeRow(index + 1, {
+          global: true,
+          name: row.nickname,
+          time: Number(row.time),
+          meta: `错 ${row.mistakes} · ${formatLeaderDate(new Date(row.created_at).getTime())}`,
+        })
+      );
+    });
+    leaderListEl.appendChild(fragment);
+  } catch (error) {
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    const fail = document.createElement('p');
+    fail.className = 'leader-empty leader-error';
+    fail.textContent = `全球榜加载失败：${error.message}`;
+    leaderListEl.appendChild(fail);
+  }
 }
 
 function shareScore() {
@@ -750,6 +891,50 @@ function shareScore() {
     );
   } else {
     fallback();
+  }
+}
+
+function setWinGlobalMsg(message, isError) {
+  winGlobalMsgEl.hidden = false;
+  winGlobalMsgEl.textContent = message;
+  winGlobalMsgEl.classList.toggle('error', Boolean(isError));
+}
+
+async function submitGlobalScore() {
+  if (!state || !state.completed || !RemoteBoard.enabled) return;
+  if (winSubmitBtn.disabled) return;
+
+  const name = saveNickname(winNickEl.value);
+  winNickEl.value = name;
+  if (!nickIsValid(name)) {
+    setWinGlobalMsg('昵称需要 2-12 个字符', true);
+    return;
+  }
+
+  winSubmitBtn.disabled = true;
+  setWinGlobalMsg('提交中…', false);
+  const difficulty = state.difficulty;
+  try {
+    const row = await RemoteBoard.submit({
+      nickname: name,
+      difficulty,
+      time: state.elapsed,
+      mistakes: state.mistakes,
+      hintsUsed: HINT_LIMIT - state.hints,
+    });
+    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX, { force: true });
+    const index = rows.findIndex((item) => String(item.id) === String(row.id));
+    if (index >= 0) {
+      setWinGlobalMsg(`已上榜，全球第 ${index + 1} 名 🎉`, false);
+      winSubmitBtn.textContent = '已提交';
+    } else {
+      setWinGlobalMsg('已提交，暂未进入前 10', false);
+      winSubmitBtn.textContent = '再次提交';
+      winSubmitBtn.disabled = false;
+    }
+  } catch (error) {
+    setWinGlobalMsg(`提交失败：${error.message}`, true);
+    winSubmitBtn.disabled = false;
   }
 }
 
@@ -875,6 +1060,25 @@ function bindEvents() {
     winOverlay.hidden = true;
   });
   winShareBtn.addEventListener('click', shareScore);
+  winSubmitBtn.addEventListener('click', submitGlobalScore);
+
+  leaderScopeEl.addEventListener('click', (event) => {
+    const btn = event.target.closest('.scope-btn');
+    if (!btn || btn.disabled) return;
+    leaderScope = btn.dataset.scope === 'global' ? 'global' : 'local';
+    renderLeaderboard();
+  });
+
+  nickSaveBtn.addEventListener('click', () => {
+    const name = saveNickname(nickInputEl.value);
+    nickInputEl.value = name;
+    if (!nickIsValid(name)) {
+      announce('昵称需要 2-12 个字符');
+      return;
+    }
+    announce('昵称已保存');
+    renderLeaderboard();
+  });
 
   leaderBtn.addEventListener('click', openLeaderboard);
   leaderCloseBtn.addEventListener('click', closeLeaderboard);

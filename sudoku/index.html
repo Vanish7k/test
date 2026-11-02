@@ -53,6 +53,13 @@
           <div class="win-stats" id="winStats"></div>
           <p class="win-best" id="winBest" hidden>新的最佳纪录</p>
           <p class="win-rank" id="winRank" hidden></p>
+          <div class="win-global" id="winGlobal" hidden>
+            <div class="win-global-row">
+              <input class="nick-input" id="winNick" type="text" maxlength="12" autocomplete="off" placeholder="昵称（2-12 字）" />
+              <button class="ghost-btn" id="winSubmitBtn" type="button">提交全球榜</button>
+            </div>
+            <p class="win-global-msg" id="winGlobalMsg" hidden></p>
+          </div>
           <div class="win-actions">
             <button class="primary-btn" id="winNewBtn" type="button">再来一局</button>
             <button class="ghost-btn" id="winShareBtn" type="button">分享成绩</button>
@@ -105,10 +112,19 @@
       <div class="sheet-grabber" aria-hidden="true"></div>
       <div class="leader-head">
         <h2 id="leaderTitle">排行榜</h2>
-        <p class="sheet-sub">本机记录的通关成绩，按用时从快到慢</p>
+        <p class="sheet-sub">按用时从快到慢，每个难度取前 10</p>
       </div>
-      <div class="leader-tabs" id="leaderTabs" role="tablist"></div>
-      <div class="leader-list" id="leaderList" role="list"></div>
+      <div class="leader-scope" id="leaderScope" role="tablist" aria-label="榜单范围">
+        <button class="scope-btn active" data-scope="local" type="button" role="tab" aria-selected="true">本机</button>
+        <button class="scope-btn" data-scope="global" type="button" role="tab" aria-selected="false" id="scopeGlobalBtn">全球</button>
+      </div>
+      <div class="nick-row" id="nickRow" hidden>
+        <label class="nick-label" for="nickInput">昵称</label>
+        <input class="nick-input" id="nickInput" type="text" maxlength="12" autocomplete="off" placeholder="2-12 个字符" />
+        <button class="ghost-btn nick-save" id="nickSaveBtn" type="button">保存</button>
+      </div>
+      <div class="leader-tabs" id="leaderTabs" role="tablist" aria-label="难度"></div>
+      <div class="leader-list" id="leaderList" role="list" aria-live="polite"></div>
       <p class="leader-empty" id="leaderEmpty" hidden>还没有记录，完成一局来上榜吧</p>
       <div class="sheet-actions leader-actions">
         <button class="ghost-btn" id="leaderClearBtn" type="button">清空当前难度</button>
@@ -120,7 +136,9 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <p class="sr-only" id="live" aria-live="polite"></p>
 
+  <script src="js/config.js"></script>
   <script src="js/sudoku.js"></script>
+  <script src="js/remote.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
