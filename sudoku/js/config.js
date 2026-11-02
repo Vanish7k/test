@@ -11,7 +11,7 @@
  *                 - 旧版：Settings → API Keys → Legacy anon, service_role → anon public（eyJ… 开头）
  */
 window.SUDOKU_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: '',
+  supabaseUrl: 'https://mnkozzyqusriqszlvepr.supabase.co',
+  supabaseAnonKey: 'sb_publishable_f8uUcUb3HRIBiFkuPe1vIw_cd5Fz1hL',
   table: 'sudoku_scores',
 };
