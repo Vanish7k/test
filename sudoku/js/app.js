@@ -69,6 +69,8 @@ const winSubmitBtn = document.getElementById('winSubmitBtn');
 const winGlobalMsgEl = document.getElementById('winGlobalMsg');
 const leaderScopeEl = document.getElementById('leaderScope');
 const scopeGlobalBtn = document.getElementById('scopeGlobalBtn');
+const leaderGamesEl = document.getElementById('leaderGames');
+const leaderSubEl = document.getElementById('leaderSub');
 const nickRowEl = document.getElementById('nickRow');
 const nickInputEl = document.getElementById('nickInput');
 const nickSaveBtn = document.getElementById('nickSaveBtn');
@@ -81,6 +83,7 @@ let modalOpen = false;
 let sheetDifficulty = 'easy';
 let leaderDifficulty = 'easy';
 let leaderScope = 'local';
+let leaderGame = 'sudoku';
 let toastTimer = 0;
 let saveTick = 0;
 let leaderAutoPaused = false;
@@ -664,6 +667,34 @@ function clearLeaderboard(difficulty) {
   writeLeaderboard(board);
 }
 
+const SCORES_2048_KEY = 'paper-2048:scores:v1';
+
+function read2048Scores() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SCORES_2048_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry) => entry && Number(entry.score) > 0 && Number.isFinite(Number(entry.date)))
+      .map((entry) => ({
+        score: Number(entry.score),
+        max: Number(entry.max) || 0,
+        date: Number(entry.date),
+      }))
+      .sort((a, b) => b.score - a.score || a.date - b.date)
+      .slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+function clear2048Scores() {
+  try {
+    localStorage.removeItem(SCORES_2048_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function formatLeaderDate(timestamp) {
   const date = new Date(timestamp);
   const now = new Date();
@@ -833,28 +864,48 @@ function rankLabel(rank) {
 let leaderRequestToken = 0;
 
 function renderLeaderboard() {
+  const is2048 = leaderGame === '2048';
+
+  for (const btn of leaderGamesEl.children) {
+    const active = btn.dataset.game === leaderGame;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-selected', String(active));
+  }
+
+  leaderTabsEl.hidden = is2048;
+  leaderSubEl.textContent = is2048
+    ? '按分数从高到低，取前 10'
+    : '按用时从快到慢，每个难度取前 10';
+
   for (const btn of leaderScopeEl.children) {
     const active = btn.dataset.scope === leaderScope;
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', String(active));
   }
-  scopeGlobalBtn.disabled = !RemoteBoard.enabled;
-  scopeGlobalBtn.title = RemoteBoard.enabled ? '所有玩家共享的成绩' : '未配置 Supabase';
-  if (!RemoteBoard.enabled && leaderScope === 'global') leaderScope = 'local';
+  const remoteReady = is2048 ? RemoteBoard2048.enabled : RemoteBoard.enabled;
+  scopeGlobalBtn.disabled = !remoteReady;
+  scopeGlobalBtn.title = remoteReady ? '所有玩家共享的成绩' : '未配置 Supabase';
+  if (!remoteReady && leaderScope === 'global') leaderScope = 'local';
 
   nickRowEl.hidden = leaderScope !== 'global';
   leaderClearBtn.hidden = leaderScope === 'global';
+  leaderClearBtn.textContent = is2048 ? '清空 2048 记录' : '清空当前难度';
   if (leaderScope === 'global') nickInputEl.value = readNickname();
 
-  for (const tab of leaderTabsEl.children) {
-    const active = tab.dataset.difficulty === leaderDifficulty;
-    tab.classList.toggle('active', active);
-    tab.setAttribute('aria-selected', String(active));
+  if (!is2048) {
+    for (const tab of leaderTabsEl.children) {
+      const active = tab.dataset.difficulty === leaderDifficulty;
+      tab.classList.toggle('active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
   }
 
   leaderRequestToken += 1;
   if (leaderScope === 'global') {
-    renderGlobalRows();
+    if (is2048) renderGlobal2048Rows();
+    else renderGlobalRows();
+  } else if (is2048) {
+    renderLocal2048Rows();
   } else {
     renderLocalRows();
   }
@@ -885,7 +936,8 @@ function makeRow(rank, detail) {
 
   const timeEl = document.createElement('span');
   timeEl.className = 'leader-time';
-  timeEl.textContent = formatTime(detail.time);
+  timeEl.textContent =
+    detail.valueText !== undefined ? detail.valueText : formatTime(detail.time);
   row.appendChild(timeEl);
 
   if (!detail.global) {
@@ -951,6 +1003,73 @@ async function renderGlobalRows() {
           name: row.nickname,
           time: Number(row.time),
           meta: `错 ${row.mistakes}${hints ? ` · 提示 ${hints}` : ''} · ${formatLeaderDate(
+            new Date(row.created_at).getTime()
+          )}`,
+        })
+      );
+    });
+    leaderListEl.appendChild(fragment);
+  } catch (error) {
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    const fail = document.createElement('p');
+    fail.className = 'leader-empty leader-error';
+    fail.textContent = `全球榜加载失败：${error.message}`;
+    leaderListEl.appendChild(fail);
+  }
+}
+
+function renderLocal2048Rows() {
+  const entries = read2048Scores().slice(0, LEADERBOARD_MAX);
+  leaderListEl.innerHTML = '';
+  if (entries.length === 0) {
+    leaderEmptyEl.textContent = '还没有记录，去玩一局 2048 吧';
+    leaderEmptyEl.hidden = false;
+    leaderClearBtn.disabled = true;
+    return;
+  }
+  leaderEmptyEl.hidden = true;
+  leaderClearBtn.disabled = false;
+
+  const fragment = document.createDocumentFragment();
+  entries.forEach((entry, index) => {
+    fragment.appendChild(
+      makeRow(index + 1, {
+        valueText: `${entry.score} 分`,
+        meta: `最大 ${entry.max} · ${formatLeaderDate(entry.date)}`,
+      })
+    );
+  });
+  leaderListEl.appendChild(fragment);
+}
+
+async function renderGlobal2048Rows() {
+  const token = ++leaderRequestToken;
+  leaderListEl.innerHTML = '';
+  leaderEmptyEl.hidden = true;
+
+  const loading = document.createElement('p');
+  loading.className = 'leader-empty';
+  loading.textContent = '加载全球榜…';
+  leaderListEl.appendChild(loading);
+
+  try {
+    const rows = await RemoteBoard2048.top(LEADERBOARD_MAX);
+    if (token !== leaderRequestToken) return;
+    leaderListEl.innerHTML = '';
+    if (rows.length === 0) {
+      leaderEmptyEl.textContent = '全球榜还没有记录，来做第一个上榜的人';
+      leaderEmptyEl.hidden = false;
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    rows.forEach((row, index) => {
+      fragment.appendChild(
+        makeRow(index + 1, {
+          global: true,
+          name: row.nickname,
+          valueText: `${Number(row.score)} 分`,
+          meta: `最大 ${Number(row.max_tile) || 0} · ${formatLeaderDate(
             new Date(row.created_at).getTime()
           )}`,
         })
@@ -1183,6 +1302,13 @@ function bindEvents() {
   winShareBtn.addEventListener('click', shareScore);
   winSubmitBtn.addEventListener('click', submitGlobalScore);
 
+  leaderGamesEl.addEventListener('click', (event) => {
+    const btn = event.target.closest('.game-tab');
+    if (!btn) return;
+    leaderGame = btn.dataset.game === '2048' ? '2048' : 'sudoku';
+    renderLeaderboard();
+  });
+
   leaderScopeEl.addEventListener('click', (event) => {
     const btn = event.target.closest('.scope-btn');
     if (!btn || btn.disabled) return;
@@ -1204,6 +1330,13 @@ function bindEvents() {
   leaderBtn.addEventListener('click', openLeaderboard);
   leaderCloseBtn.addEventListener('click', closeLeaderboard);
   leaderClearBtn.addEventListener('click', () => {
+    if (leaderGame === '2048') {
+      if (!window.confirm('确定清空本机 2048 排行榜吗？此操作无法撤销。')) return;
+      clear2048Scores();
+      renderLeaderboard();
+      announce('已清空 2048 排行榜');
+      return;
+    }
     const label = DIFFICULTIES[leaderDifficulty].label;
     if (!window.confirm(`确定清空「${label}」难度的本机排行榜吗？此操作无法撤销。`)) return;
     clearLeaderboard(leaderDifficulty);

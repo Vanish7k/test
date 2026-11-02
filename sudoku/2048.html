@@ -37,6 +37,11 @@
             <button class="ghost" id="keepBtn" type="button" hidden>继续玩</button>
             <button class="primary" id="againBtn" type="button">再来一局</button>
           </div>
+          <div class="ov-global" id="ovGlobal" hidden>
+            <input class="ov-nick" id="ovNick" type="text" maxlength="12" autocomplete="off" placeholder="昵称（2-12 字）" />
+            <button class="ov-submit" id="ovSubmit" type="button">提交全球榜</button>
+            <p class="ov-msg" id="ovMsg" hidden></p>
+          </div>
         </div>
       </div>
     </div>
@@ -45,6 +50,8 @@
   <p class="tip">滑动屏幕或按方向键移动 · 相同数字合并</p>
 </main>
 
+<script src="js/config.js"></script>
+<script src="js/remote.js"></script>
 <script src="js/2048.js"></script>
 </body>
 </html>

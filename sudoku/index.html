@@ -124,7 +124,11 @@
       <div class="sheet-grabber" aria-hidden="true"></div>
       <div class="leader-head">
         <h2 id="leaderTitle">排行榜</h2>
-        <p class="sheet-sub">按用时从快到慢，每个难度取前 10</p>
+        <p class="sheet-sub" id="leaderSub">按用时从快到慢，每个难度取前 10</p>
+      </div>
+      <div class="leader-games" id="leaderGames" role="tablist" aria-label="游戏">
+        <button class="game-tab active" data-game="sudoku" type="button" role="tab" aria-selected="true">数独</button>
+        <button class="game-tab" data-game="2048" type="button" role="tab" aria-selected="false">2048</button>
       </div>
       <div class="leader-scope" id="leaderScope" role="tablist" aria-label="榜单范围">
         <button class="scope-btn active" data-scope="local" type="button" role="tab" aria-selected="true">本机</button>

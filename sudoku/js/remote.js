@@ -7,6 +7,7 @@ const RemoteBoard = (() => {
   const url = String(cfg.supabaseUrl || '').replace(/\/+$/, '');
   const key = String(cfg.supabaseAnonKey || '');
   const table = cfg.table || 'sudoku_scores';
+  const table2048 = cfg.table2048 || 'game2048_scores';
   const enabled = Boolean(url && key);
   const cache = new Map();
   const CACHE_MS = 60_000;
@@ -83,9 +84,45 @@ const RemoteBoard = (() => {
     return row || {};
   }
 
+  async function top2048(limit = 10, { force = false } = {}) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const cached = cache.get('2048');
+    if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.rows;
+
+    const query = [
+      'select=id,nickname,score,max_tile,created_at',
+      'order=score.desc,max_tile.desc,created_at.asc',
+      `limit=${limit}`,
+    ].join('&');
+    const res = await request(`${table2048}?${query}`);
+    const rows = await res.json();
+    const list = Array.isArray(rows) ? rows : [];
+    cache.set('2048', { at: Date.now(), rows: list });
+    return list;
+  }
+
+  async function submit2048(entry) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const res = await request(table2048, {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        nickname: entry.nickname,
+        score: entry.score,
+        max_tile: entry.maxTile || 0,
+      }),
+    });
+    const rows = await res.json().catch(() => []);
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    cache.delete('2048');
+    return row || {};
+  }
+
   function clearCache() {
     cache.clear();
   }
 
-  return { enabled, top, submit, clearCache };
+  return { enabled, top, submit, top2048, submit2048, clearCache };
 })();
+
+const RemoteBoard2048 = RemoteBoard;

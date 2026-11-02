@@ -4,6 +4,8 @@
   const SIZE = 4;
   const STORE_KEY = 'paper-2048:state:v1';
   const BEST_KEY = 'paper-2048:best:v1';
+  const SCORES_KEY = 'paper-2048:scores:v1';
+  const NICK_KEY = 'paper-sudoku:nickname:v1';
   const MERGE_MS = 120;
   const SWIPE_MIN = 22;
 
@@ -19,6 +21,10 @@
   const overlaySub = document.getElementById('overlaySub');
   const keepBtn = document.getElementById('keepBtn');
   const againBtn = document.getElementById('againBtn');
+  const ovGlobal = document.getElementById('ovGlobal');
+  const ovNick = document.getElementById('ovNick');
+  const ovSubmit = document.getElementById('ovSubmit');
+  const ovMsg = document.getElementById('ovMsg');
 
   let grid = new Array(SIZE * SIZE).fill(null);
   let score = 0;
@@ -34,6 +40,7 @@
   let pendingSpawn = 0;
   let pendingRemovals = [];
   let pointerStart = null;
+  let runSaved = false;
 
   // ---------- 背景格 ----------
 
@@ -188,9 +195,11 @@
   }
 
   function reset() {
+    recordRun();
     clearBoard();
     score = 0;
     history = [];
+    runSaved = false;
     spawnNow();
     spawnNow();
     updateHud();
@@ -320,6 +329,7 @@
     if (over || !overlayEl.hidden) return;
     if (canMove()) return;
     over = true;
+    recordRun();
     showOverlay('over');
     save();
   }
@@ -329,10 +339,14 @@
       overlayTitle.textContent = '达成 2048';
       overlaySub.textContent = '分数 ' + score + ' · 还能继续冲更高';
       keepBtn.hidden = false;
+      ovGlobal.hidden = true;
     } else {
       overlayTitle.textContent = '没有可移动的格子了';
       overlaySub.textContent = '本局得分 ' + score;
       keepBtn.hidden = true;
+      ovGlobal.hidden = !remoteReady();
+      ovMsg.hidden = true;
+      ovNick.value = readNickname();
     }
     overlayEl.hidden = false;
   }
@@ -349,6 +363,88 @@
     }
     bestEl.textContent = String(best);
     undoBtn.disabled = history.length === 0;
+  }
+
+  // ---------- 成绩记录 ----------
+
+  function maxTile() {
+    let max = 0;
+    grid.forEach((tile) => {
+      if (tile && tile.value > max) max = tile.value;
+    });
+    return max;
+  }
+
+  function recordRun() {
+    if (runSaved || score <= 0) return;
+    runSaved = true;
+    const entry = { score, max: maxTile(), date: Date.now() };
+    let list = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(SCORES_KEY) || '[]');
+      if (Array.isArray(parsed)) list = parsed.filter((item) => item && Number(item.score) > 0);
+    } catch {
+      list = [];
+    }
+    list.push(entry);
+    list.sort((a, b) => Number(b.score) - Number(a.score) || Number(a.date) - Number(b.date));
+    list.length = Math.min(list.length, 20);
+    try {
+      localStorage.setItem(SCORES_KEY, JSON.stringify(list));
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  function normalizeNick(value) {
+    return String(value || '')
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 12);
+  }
+
+  function readNickname() {
+    try {
+      return localStorage.getItem(NICK_KEY) || '';
+    } catch {
+      return '';
+    }
+  }
+
+  function setOvMsg(text, error) {
+    ovMsg.hidden = false;
+    ovMsg.textContent = text;
+    ovMsg.classList.toggle('error', Boolean(error));
+  }
+
+  function remoteReady() {
+    return typeof RemoteBoard2048 !== 'undefined' && RemoteBoard2048.enabled;
+  }
+
+  async function submitGlobal() {
+    if (!remoteReady() || ovSubmit.disabled) return;
+    const name = normalizeNick(ovNick.value);
+    ovNick.value = name;
+    if (name.length < 2) {
+      setOvMsg('昵称需要 2-12 个字符', true);
+      return;
+    }
+    ovSubmit.disabled = true;
+    setOvMsg('提交中…', false);
+    try {
+      await RemoteBoard2048.submit2048({ nickname: name, score, maxTile: maxTile() });
+      try {
+        localStorage.setItem(NICK_KEY, name);
+      } catch {
+        /* storage unavailable */
+      }
+      setOvMsg('已提交，可在数独页排行榜的 2048 标签查看', false);
+    } catch (error) {
+      setOvMsg(`提交失败：${error.message}`, true);
+    } finally {
+      ovSubmit.disabled = false;
+    }
   }
 
   // ---------- 存档 ----------
@@ -470,6 +566,7 @@
   });
 
   againBtn.addEventListener('click', reset);
+  ovSubmit.addEventListener('click', submitGlobal);
 
   // ---------- 初始化 ----------
 
