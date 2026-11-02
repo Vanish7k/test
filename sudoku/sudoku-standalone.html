@@ -1513,7 +1513,8 @@ const RemoteBoard = (() => {
       }
       return res;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('连接超时');
+      if (error.name === 'AbortError') throw new Error('连接超时，请检查网络');
+      if (error instanceof TypeError) throw new Error('无法连接，请检查网络或 Project URL');
       throw error;
     } finally {
       clearTimeout(timer);
