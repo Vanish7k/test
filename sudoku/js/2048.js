@@ -285,7 +285,11 @@
       const rec = tiles.get(tile.id);
       if (rec) {
         setFace(rec, tile.value);
-        window.setTimeout(() => popTile(tile.id), MERGE_MS);
+        rec.wrap.style.zIndex = '2';
+        window.setTimeout(() => {
+          popTile(tile.id);
+          rec.wrap.style.zIndex = '';
+        }, MERGE_MS);
       }
     });
 
@@ -414,7 +418,7 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+    const key = event.key.toLowerCase();
     const dir = {
       arrowleft: 'left',
       arrowright: 'right',
