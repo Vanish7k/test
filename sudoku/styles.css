@@ -1307,54 +1307,32 @@ button {
   }
 }
 
-/* ---------- Switch game / update bar ---------- */
-
-.switch-game {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface-soft);
-  color: var(--ink);
-  text-decoration: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.switch-game:hover,
-.switch-game:active {
-  border-color: var(--line-strong);
-  background: #fdf8ec;
-}
-
-.switch-game-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.switch-game-name {
-  font-family: var(--serif);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.switch-game-desc {
+.game-link {
+  padding: 9px 11px;
   font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.02em;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
-.switch-game-arrow {
-  flex: none;
-  font-size: 16px;
-  color: var(--accent);
+@media (max-width: 420px) {
+  .game-link {
+    padding: 8px 9px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
 }
+
+@media (max-width: 360px) {
+  .game-link {
+    padding: 7px 7px;
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+}
+
+/* ---------- Update bar ---------- */
 
 .update-bar {
   position: fixed;

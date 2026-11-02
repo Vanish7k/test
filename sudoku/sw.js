@@ -1,5 +1,5 @@
 /* 纸感数独 · 离线缓存 */
-const CACHE = 'paper-sudoku-v8';
+const CACHE = 'paper-sudoku-v9';
 const CORE = [
   './',
   './index.html',
