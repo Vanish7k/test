@@ -864,12 +864,19 @@ function rankLabel(rank) {
 let leaderRequestToken = 0;
 
 function renderLeaderboard() {
-  const is2048 = leaderGame === '2048';
+  const has2048Tab = typeof leaderGame === 'string' && leaderGamesEl;
+  const is2048 = has2048Tab && leaderGame === '2048';
+  if (is2048 && leaderScope === 'local') {
+    const raw = localStorage.getItem(SCORES_2048_KEY);
+    console.info('[排行榜·诊断] 2048 本机榜 key=', SCORES_2048_KEY, '原始值=', raw);
+  }
 
-  for (const btn of leaderGamesEl.children) {
-    const active = btn.dataset.game === leaderGame;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', String(active));
+  if (has2048Tab) {
+    for (const btn of leaderGamesEl.children) {
+      const active = btn.dataset.game === leaderGame;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    }
   }
 
   leaderTabsEl.hidden = is2048;
@@ -882,7 +889,9 @@ function renderLeaderboard() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', String(active));
   }
-  const remoteReady = is2048 ? RemoteBoard2048.enabled : RemoteBoard.enabled;
+  const remoteReady = is2048
+    ? typeof RemoteBoard2048 !== 'undefined' && RemoteBoard2048.enabled
+    : RemoteBoard.enabled;
   scopeGlobalBtn.disabled = !remoteReady;
   scopeGlobalBtn.title = remoteReady ? '所有玩家共享的成绩' : '未配置 Supabase';
   if (!remoteReady && leaderScope === 'global') leaderScope = 'local';
