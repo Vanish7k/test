@@ -706,6 +706,78 @@ button {
   letter-spacing: 0.02em;
 }
 
+/* ---------- Missing digits ---------- */
+
+.missing {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 252, 244, 0.78);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.missing-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 10px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.missing-item.single {
+  background: #f9e9d3;
+  box-shadow: inset 0 0 0 1px rgba(180, 90, 47, 0.25);
+}
+
+.missing-k {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.missing-v {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  min-width: 0;
+}
+
+.missing-chip {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fffdf7;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.missing-item.single .missing-chip {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff9ee;
+}
+
+.missing-done {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--teal);
+}
+
 /* ---------- New game sheet ---------- */
 
 .sheet-backdrop {
@@ -1234,6 +1306,12 @@ button {
       </div>
     </section>
 
+    <div class="missing" id="missingBar" aria-label="当前格子所在行、列、宫的缺失数字" hidden>
+      <div class="missing-item" id="missingRowItem"><span class="missing-k">行</span><span class="missing-v" id="missingRow"></span></div>
+      <div class="missing-item" id="missingColItem"><span class="missing-k">列</span><span class="missing-v" id="missingCol"></span></div>
+      <div class="missing-item" id="missingBoxItem"><span class="missing-k">宫</span><span class="missing-v" id="missingBox"></span></div>
+    </div>
+
     <section class="tools" aria-label="工具">
       <button class="tool" id="undoBtn" type="button">
         <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a6 6 0 0 1 0 12h-1"/></svg>
@@ -1616,6 +1694,13 @@ const cancelNewBtn = document.getElementById('cancelNewBtn');
 const startNewBtn = document.getElementById('startNewBtn');
 const toastEl = document.getElementById('toast');
 const liveEl = document.getElementById('live');
+const missingBarEl = document.getElementById('missingBar');
+const missingRowEl = document.getElementById('missingRow');
+const missingColEl = document.getElementById('missingCol');
+const missingBoxEl = document.getElementById('missingBox');
+const missingRowItemEl = document.getElementById('missingRowItem');
+const missingColItemEl = document.getElementById('missingColItem');
+const missingBoxItemEl = document.getElementById('missingBoxItem');
 
 const leaderBtn = document.getElementById('leaderBtn');
 const leaderOverlay = document.getElementById('leaderOverlay');
@@ -1832,6 +1917,7 @@ function render() {
 
   updateHud();
   updatePad();
+  updateMissing();
 }
 
 function describeCell(index) {
@@ -1881,6 +1967,67 @@ function updatePad() {
       remaining > 0 ? `输入数字 ${n}，还剩 ${remaining} 个` : `输入数字 ${n}，已全部填完`
     );
   }
+}
+
+function unitIndices(index, kind) {
+  const row = Math.floor(index / 9);
+  const col = index % 9;
+  if (kind === 'row') return Array.from({ length: 9 }, (_, c) => row * 9 + c);
+  if (kind === 'col') return Array.from({ length: 9 }, (_, r) => r * 9 + col);
+  const boxRow = Math.floor(row / 3) * 3;
+  const boxCol = Math.floor(col / 3) * 3;
+  const list = [];
+  for (let r = boxRow; r < boxRow + 3; r += 1) {
+    for (let c = boxCol; c < boxCol + 3; c += 1) list.push(r * 9 + c);
+  }
+  return list;
+}
+
+function missingIn(indices) {
+  const present = new Set();
+  for (const index of indices) {
+    const value = state.values[index];
+    if (value) present.add(value);
+  }
+  const digits = [];
+  for (let n = 1; n <= 9; n += 1) {
+    if (!present.has(n)) digits.push(n);
+  }
+  return digits;
+}
+
+function fillMissingItem(itemEl, valueEl, label, digits) {
+  valueEl.textContent = '';
+  itemEl.classList.toggle('single', digits.length === 1);
+  itemEl.setAttribute(
+    'aria-label',
+    digits.length ? `${label}还缺 ${digits.join('、')}` : `${label}已经填齐`
+  );
+  if (digits.length === 0) {
+    const done = document.createElement('span');
+    done.className = 'missing-done';
+    done.textContent = '齐';
+    valueEl.appendChild(done);
+    return;
+  }
+  for (const digit of digits) {
+    const chip = document.createElement('span');
+    chip.className = 'missing-chip';
+    chip.textContent = String(digit);
+    valueEl.appendChild(chip);
+  }
+}
+
+function updateMissing() {
+  if (!state || state.completed || state.paused || state.selected < 0) {
+    missingBarEl.hidden = true;
+    return;
+  }
+  const index = state.selected;
+  fillMissingItem(missingRowItemEl, missingRowEl, '本行', missingIn(unitIndices(index, 'row')));
+  fillMissingItem(missingColItemEl, missingColEl, '本列', missingIn(unitIndices(index, 'col')));
+  fillMissingItem(missingBoxItemEl, missingBoxEl, '本宫', missingIn(unitIndices(index, 'box')));
+  missingBarEl.hidden = false;
 }
 
 function announce(message) {

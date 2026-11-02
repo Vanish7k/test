@@ -43,6 +43,13 @@ const cancelNewBtn = document.getElementById('cancelNewBtn');
 const startNewBtn = document.getElementById('startNewBtn');
 const toastEl = document.getElementById('toast');
 const liveEl = document.getElementById('live');
+const missingBarEl = document.getElementById('missingBar');
+const missingRowEl = document.getElementById('missingRow');
+const missingColEl = document.getElementById('missingCol');
+const missingBoxEl = document.getElementById('missingBox');
+const missingRowItemEl = document.getElementById('missingRowItem');
+const missingColItemEl = document.getElementById('missingColItem');
+const missingBoxItemEl = document.getElementById('missingBoxItem');
 
 const leaderBtn = document.getElementById('leaderBtn');
 const leaderOverlay = document.getElementById('leaderOverlay');
@@ -259,6 +266,7 @@ function render() {
 
   updateHud();
   updatePad();
+  updateMissing();
 }
 
 function describeCell(index) {
@@ -308,6 +316,67 @@ function updatePad() {
       remaining > 0 ? `输入数字 ${n}，还剩 ${remaining} 个` : `输入数字 ${n}，已全部填完`
     );
   }
+}
+
+function unitIndices(index, kind) {
+  const row = Math.floor(index / 9);
+  const col = index % 9;
+  if (kind === 'row') return Array.from({ length: 9 }, (_, c) => row * 9 + c);
+  if (kind === 'col') return Array.from({ length: 9 }, (_, r) => r * 9 + col);
+  const boxRow = Math.floor(row / 3) * 3;
+  const boxCol = Math.floor(col / 3) * 3;
+  const list = [];
+  for (let r = boxRow; r < boxRow + 3; r += 1) {
+    for (let c = boxCol; c < boxCol + 3; c += 1) list.push(r * 9 + c);
+  }
+  return list;
+}
+
+function missingIn(indices) {
+  const present = new Set();
+  for (const index of indices) {
+    const value = state.values[index];
+    if (value) present.add(value);
+  }
+  const digits = [];
+  for (let n = 1; n <= 9; n += 1) {
+    if (!present.has(n)) digits.push(n);
+  }
+  return digits;
+}
+
+function fillMissingItem(itemEl, valueEl, label, digits) {
+  valueEl.textContent = '';
+  itemEl.classList.toggle('single', digits.length === 1);
+  itemEl.setAttribute(
+    'aria-label',
+    digits.length ? `${label}还缺 ${digits.join('、')}` : `${label}已经填齐`
+  );
+  if (digits.length === 0) {
+    const done = document.createElement('span');
+    done.className = 'missing-done';
+    done.textContent = '齐';
+    valueEl.appendChild(done);
+    return;
+  }
+  for (const digit of digits) {
+    const chip = document.createElement('span');
+    chip.className = 'missing-chip';
+    chip.textContent = String(digit);
+    valueEl.appendChild(chip);
+  }
+}
+
+function updateMissing() {
+  if (!state || state.completed || state.paused || state.selected < 0) {
+    missingBarEl.hidden = true;
+    return;
+  }
+  const index = state.selected;
+  fillMissingItem(missingRowItemEl, missingRowEl, '本行', missingIn(unitIndices(index, 'row')));
+  fillMissingItem(missingColItemEl, missingColEl, '本列', missingIn(unitIndices(index, 'col')));
+  fillMissingItem(missingBoxItemEl, missingBoxEl, '本宫', missingIn(unitIndices(index, 'box')));
+  missingBarEl.hidden = false;
 }
 
 function announce(message) {
