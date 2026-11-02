@@ -1308,8 +1308,11 @@ button {
  * 填好下面两项后，游戏里的“全球”榜才会启用；留空则只用本机排行榜。
  * 这两项都是公开信息，可以放在前端代码里 —— 真正的权限由 Supabase 的 RLS 策略控制。
  *
- * supabaseUrl:    项目设置 → API → Project URL，形如 https://abcdefgh.supabase.co
- * supabaseAnonKey: 项目设置 → API → anon public key
+ * supabaseUrl:    Project Settings → Data API → Project URL，
+ *                 形如 https://abcdefghijkl.supabase.co（也可用 https://<项目ref>.supabase.co）
+ * supabaseAnonKey: 下面两种都可以，代码都兼容
+ *                 - 新版：Settings → API Keys → Publishable key（sb_publishable_… 开头）
+ *                 - 旧版：Settings → API Keys → Legacy anon, service_role → anon public（eyJ… 开头）
  */
 window.SUDOKU_CONFIG = {
   supabaseUrl: '',
@@ -1488,14 +1491,16 @@ const RemoteBoard = (() => {
   const CACHE_MS = 60_000;
 
   function headers(extra) {
-    return Object.assign(
-      {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      extra || {}
-    );
+    const base = {
+      apikey: key,
+      'Content-Type': 'application/json',
+    };
+    // 旧版 anon key 是 JWT，需要同时放在 Authorization 里；
+    // 新版 publishable key（sb_publishable_…）只需 apikey 头。
+    if (!/^sb_publishable_/.test(key)) {
+      base.Authorization = `Bearer ${key}`;
+    }
+    return Object.assign(base, extra || {});
   }
 
   async function request(path, options = {}, timeout = 9000) {
@@ -1513,8 +1518,7 @@ const RemoteBoard = (() => {
       }
       return res;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('连接超时，请检查网络');
-      if (error instanceof TypeError) throw new Error('无法连接，请检查网络或 Project URL');
+      if (error.name === 'AbortError') throw new Error('连接超时');
       throw error;
     } finally {
       clearTimeout(timer);

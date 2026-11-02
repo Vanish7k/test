@@ -12,14 +12,16 @@ const RemoteBoard = (() => {
   const CACHE_MS = 60_000;
 
   function headers(extra) {
-    return Object.assign(
-      {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      extra || {}
-    );
+    const base = {
+      apikey: key,
+      'Content-Type': 'application/json',
+    };
+    // 旧版 anon key 是 JWT，需要同时放在 Authorization 里；
+    // 新版 publishable key（sb_publishable_…）只需 apikey 头。
+    if (!/^sb_publishable_/.test(key)) {
+      base.Authorization = `Bearer ${key}`;
+    }
+    return Object.assign(base, extra || {});
   }
 
   async function request(path, options = {}, timeout = 9000) {
@@ -37,8 +39,7 @@ const RemoteBoard = (() => {
       }
       return res;
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('连接超时，请检查网络');
-      if (error instanceof TypeError) throw new Error('无法连接，请检查网络或 Project URL');
+      if (error.name === 'AbortError') throw new Error('连接超时');
       throw error;
     } finally {
       clearTimeout(timer);
