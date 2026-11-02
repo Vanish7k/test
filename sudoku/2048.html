@@ -14,14 +14,15 @@
 <body>
 <main class="game">
   <header class="bar">
-    <a class="back" href="index.html" aria-label="返回数独">← 数独</a>
+    <a class="back" href="index.html" aria-label="返回数独">←<span class="back-text"> 数独</span></a>
     <div class="scores">
       <div class="score"><span class="k">得分</span><strong id="score">0</strong></div>
       <div class="score"><span class="k">最高</span><strong id="best">0</strong></div>
     </div>
     <div class="actions">
       <button class="round" id="undoBtn" type="button" aria-label="撤销上一步" title="撤销">↺</button>
-      <button class="round" id="restartBtn" type="button" aria-label="重新开始" title="重新开始">⟲</button>
+      <button class="round" id="lbBtn" type="button" aria-label="排行榜" title="排行榜">🏆</button>
+      <button class="round wide" id="endBtn" type="button" aria-label="结束当前这一局" title="结束这一局">结束</button>
     </div>
   </header>
 
@@ -49,6 +50,28 @@
 
   <p class="tip">滑动屏幕或按方向键移动 · 相同数字合并</p>
 </main>
+
+<div class="lb" id="lb" hidden>
+  <div class="lb-card" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <header class="lb-head">
+      <div>
+        <h2 class="lb-title" id="lbTitle">2048 排行榜</h2>
+        <p class="lb-sub" id="lbSub">本机前 10 名</p>
+      </div>
+      <button class="lb-close" id="lbClose" type="button" aria-label="关闭排行榜">×</button>
+    </header>
+
+    <div class="lb-scopes" role="tablist" aria-label="排行榜范围">
+      <button class="lb-scope is-active" id="lbLocal" type="button" role="tab" aria-selected="true">本机</button>
+      <button class="lb-scope" id="lbGlobal" type="button" role="tab" aria-selected="false">全球</button>
+    </div>
+
+    <p class="lb-msg" id="lbMsg" hidden></p>
+    <ol class="lb-list" id="lbList"></ol>
+    <p class="lb-empty" id="lbEmpty" hidden>还没有记录</p>
+    <p class="lb-note" id="lbNote" hidden>结束一局后，在结算面板填写昵称即可提交全球榜。</p>
+  </div>
+</div>
 
 <script src="js/config.js"></script>
 <script src="js/remote.js"></script>
