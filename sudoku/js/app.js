@@ -1138,7 +1138,7 @@ async function renderGlobal2048Rows() {
   leaderListEl.appendChild(loading);
 
   try {
-    const rows = await RemoteBoard2048.top2048(LEADERBOARD_MAX, { force: true });
+    const rows = await RemoteBoard2048.top2048(LEADERBOARD_MAX);
     if (token !== leaderRequestToken) return;
     leaderListEl.innerHTML = '';
     if (rows.length === 0) {

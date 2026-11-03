@@ -25,26 +25,59 @@ const RemoteBoard = (() => {
     return Object.assign(base, extra || {});
   }
 
+  const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
   async function request(path, options = {}, timeout = 9000) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-    try {
-      const res = await fetch(`${url}/rest/v1/${path}`, {
-        ...options,
-        headers: headers(options.headers),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status}${body ? ` ${body.slice(0, 120)}` : ''}`);
+    const method = (options.method || 'GET').toUpperCase();
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        const res = await fetch(`${url}/rest/v1/${path}`, {
+          ...options,
+          headers: headers(options.headers),
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          const err = new Error(`HTTP ${res.status}`);
+          err.status = res.status;
+          err.bodyPreview = body.slice(0, 120);
+          throw err;
+        }
+        clearTimeout(timer);
+        return res;
+      } catch (error) {
+        clearTimeout(timer);
+        lastError = error;
+
+        const isAbort = error.name === 'AbortError';
+        const isTimeout = isAbort || error.message === 'Failed to fetch';
+        const isServerError = error.status !== undefined && error.status >= 500 && error.status < 600;
+
+        // POST/PUT 等写操作不重试（避免重复提交）
+        if (!RETRYABLE_METHODS.has(method)) {
+          if (isAbort) throw new Error('请求超时，请检查网络');
+          throw error;
+        }
+
+        // 只有网络抖动 / 5xx 才重试；4xx 直接失败
+        if (!isTimeout && !isServerError) throw error;
+
+        if (attempt >= 3) break;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
       }
-      return res;
-    } catch (error) {
-      if (error.name === 'AbortError') throw new Error('连接超时');
-      throw error;
-    } finally {
-      clearTimeout(timer);
     }
+
+    const userMsg =
+      lastError && lastError.status
+        ? `全球榜暂时不可用（${lastError.status}）`
+        : '全球榜连接失败，请稍后重试';
+    const err = new Error(userMsg);
+    err.cause = lastError;
+    throw err;
   }
 
   async function top(difficulty, limit = 10, { force = false } = {}) {

@@ -342,7 +342,7 @@
     lbMsg.textContent = '加载中…';
 
     try {
-      const rows = await RemoteBoard2048.top2048(10, { force: true });
+      const rows = await RemoteBoard2048.top2048(10);
       if (seq !== lbRequest) return;
       lbMsg.hidden = true;
       renderLb(
