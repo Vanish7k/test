@@ -1,5 +1,5 @@
 /* 纸感数独 · 离线缓存 */
-const CACHE = 'paper-sudoku-v20';
+const CACHE = 'paper-sudoku-v21';
 const CORE = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const CORE = [
   './js/remote.js',
   './js/app.js',
   './js/2048.js',
+  './icons/favicon-32.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
@@ -39,6 +40,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/** 判断一个 Response 是否值得缓存（2xx + basic，不是 404 兜底） */
+function shouldCache(response) {
+  return (
+    response &&
+    response.ok &&
+    response.type === 'basic' &&
+    Number(response.status) >= 200 &&
+    Number(response.status) < 400
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -49,22 +61,31 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
+          // 只缓存真正的 200 响应；GitHub Pages 下若访问不存在的路径会返回 404 HTML
+          // 但 status 是 404，shouldCache 会过滤掉
+          if (shouldCache(response)) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(request, copy));
+          }
           return response;
         })
-        .catch(() => caches.match(request).then((hit) => hit || caches.match('./index.html')))
+        .catch(() =>
+          caches
+            .match(request)
+            .then((hit) => hit || caches.match('./index.html'))
+            .then((fallback) => fallback || new Response('', { status: 503 }))
+        )
     );
     return;
   }
 
-  // 资源走「先用缓存、后台更新」，这样更新后的样式下次打开就会生效
+  // 资源走「先用缓存、后台更新」
   event.respondWith(
     (async () => {
       const cached = await caches.match(request);
       const network = fetch(request)
         .then((response) => {
-          if (response.ok && response.type === 'basic') {
+          if (shouldCache(response)) {
             const copy = response.clone();
             caches.open(CACHE).then((cache) => cache.put(request, copy));
           }

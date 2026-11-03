@@ -367,8 +367,6 @@
   function openLeaderboard() {
     if (!lbEl.hidden) return;
     lbEl.hidden = false;
-    const raw = localStorage.getItem(SCORES_KEY);
-    console.info('[2048排行榜·诊断] key=', SCORES_KEY, '原始值=', raw);
     showScope(lbScope);
   }
 

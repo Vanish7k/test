@@ -14,4 +14,5 @@ window.SUDOKU_CONFIG = {
   supabaseUrl: 'https://mnkozzyqusriqszlvepr.supabase.co',
   supabaseAnonKey: 'sb_publishable_f8uUcUb3HRIBiFkuPe1vIw_cd5Fz1hL',
   table: 'sudoku_scores',
+  table2048: 'game2048_scores',
 };
