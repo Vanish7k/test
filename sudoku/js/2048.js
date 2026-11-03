@@ -592,6 +592,8 @@
       ovGlobal.hidden = !(remoteReady() && score > 0);
       ovMsg.hidden = true;
       ovNick.value = readNickname();
+      ovSubmit.disabled = false;
+      ovSubmit.textContent = '提交全球榜';
     }
     overlayEl.hidden = false;
     if (kind === "win") celebrateVictory();
@@ -686,9 +688,9 @@
         /* storage unavailable */
       }
       setOvMsg('已提交，可在本页右上角排行榜查看', false);
+      ovSubmit.textContent = '已提交';
     } catch (error) {
       setOvMsg(`提交失败：${error.message}`, true);
-    } finally {
       ovSubmit.disabled = false;
     }
   }

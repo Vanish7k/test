@@ -1231,6 +1231,7 @@ async function submitGlobalScore() {
   winSubmitBtn.disabled = true;
   setWinGlobalMsg('提交中…', false);
   const difficulty = state.difficulty;
+  let submitted = false;
   try {
     const row = await RemoteBoard.submit({
       nickname: name,
@@ -1239,19 +1240,24 @@ async function submitGlobalScore() {
       mistakes: state.mistakes,
       hintsUsed: HINT_LIMIT - state.hints,
     });
+    submitted = true;
     const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX, { force: true });
     const index = rows.findIndex((item) => String(item.id) === String(row.id));
     if (index >= 0) {
       setWinGlobalMsg(`已上榜，全球第 ${index + 1} 名 🎉`, false);
-      winSubmitBtn.textContent = '已提交';
     } else {
       setWinGlobalMsg('已提交，暂未进入前 10', false);
-      winSubmitBtn.textContent = '再次提交';
+    }
+    winSubmitBtn.textContent = '已提交';
+  } catch (error) {
+    if (submitted) {
+      // 成绩已写入服务器，只是排行刷新失败；不能重试，否则会插入重复记录
+      setWinGlobalMsg('已提交', false);
+      winSubmitBtn.textContent = '已提交';
+    } else {
+      setWinGlobalMsg(`提交失败：${error.message}`, true);
       winSubmitBtn.disabled = false;
     }
-  } catch (error) {
-    setWinGlobalMsg(`提交失败：${error.message}`, true);
-    winSubmitBtn.disabled = false;
   }
 }
 
