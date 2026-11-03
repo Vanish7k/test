@@ -669,7 +669,7 @@ body {
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.05),
     0 3px 12px rgba(119, 110, 101, 0.18);
-  animation: loader-tile-cycle 2.4s ease forwards;
+  animation: loader-tile-cycle 1.8s ease forwards;
 }
 
 /* 背景色从 2→4→…→2048 的配色依次过一遍，最后定格在 2048 的金黄 */

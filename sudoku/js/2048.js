@@ -852,12 +852,12 @@
 
   init();
 
-  // 隐藏启动 Loader：最短显示 3s，DOM ready 后隐藏，最长 4.5s 兜底
+  // 隐藏启动 Loader：最短显示 2.2s，DOM ready 后隐藏，最长 3.7s 兜底
   (function hideAppLoader() {
     const loader = document.getElementById('appLoader');
     if (!loader) return;
-    const MIN = 3000;
-    const MAX = 4500;
+    const MIN = 2200;
+    const MAX = 3700;
     const start = performance.now();
     const done = () => {
       const elapsed = performance.now() - start;

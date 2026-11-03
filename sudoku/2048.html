@@ -13,11 +13,11 @@
 <style>
 .app-loader{position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:radial-gradient(1200px 600px at 50% -10%,#f6f1e6 0%,transparent 60%),#ebe7dd;transition:opacity .45s ease,visibility .45s ease}
 .app-loader[hidden]{display:flex!important;opacity:0;visibility:hidden;pointer-events:none}
-.loader-tile{position:relative;width:62px;height:62px;border-radius:8px;background:#eee4da;color:#776e65;display:grid;place-items:center;font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;letter-spacing:-.02em;box-shadow:0 1px 0 rgba(0,0,0,.05),0 3px 12px rgba(119,110,101,.18);animation:loader-tile-cycle 2.4s ease forwards}
+.loader-tile{position:relative;width:62px;height:62px;border-radius:8px;background:#eee4da;color:#776e65;display:grid;place-items:center;font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;letter-spacing:-.02em;box-shadow:0 1px 0 rgba(0,0,0,.05),0 3px 12px rgba(119,110,101,.18);animation:loader-tile-cycle 1.8s ease forwards}
 @keyframes loader-tile-cycle{0%{background:#eee4da;color:#776e65}8%{background:#ede0c8;color:#776e65}16%{background:#f2b179;color:#f9f6f2}24%{background:#f59563;color:#f9f6f2}32%{background:#f67c5f;color:#f9f6f2}40%{background:#f65e3b;color:#f9f6f2}48%{background:#edcf72;color:#f9f6f2;font-size:26px}56%{background:#edcc61;color:#f9f6f2;font-size:24px}64%{background:#edc850;color:#f9f6f2;font-size:22px}72%{background:#edc53f;color:#f9f6f2;font-size:20px}80%{background:#edc22e;color:#f9f6f2;font-size:18px}92%{transform:scale(1)}100%{transform:scale(1.02)}}
-.loader-tile::after{content:"2048";position:absolute;inset:0;display:grid;place-items:center;font-size:18px;opacity:0;transform:scale(.7);animation:loader-text-pop .7s cubic-bezier(.2,1.4,.4,1) 1.9s forwards}
+.loader-tile::after{content:"2048";position:absolute;inset:0;display:grid;place-items:center;font-size:18px;opacity:0;transform:scale(.7);animation:loader-text-pop .6s cubic-bezier(.2,1.4,.4,1) 1.4s forwards}
 @keyframes loader-text-pop{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.12)}100%{opacity:1;transform:scale(1)}}
-.loader-brand{font-size:9px;letter-spacing:.34em;color:#9c9079;text-transform:uppercase;opacity:0;animation:loader-brand-fade .7s ease 2.3s forwards}
+.loader-brand{font-size:9px;letter-spacing:.34em;color:#9c9079;text-transform:uppercase;opacity:0;animation:loader-brand-fade .6s ease 1.6s forwards}
 @keyframes loader-brand-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
@@ -39,10 +39,10 @@
     }
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { hide(); return; }
     var t0 = Date.now();
-    function ready() { setTimeout(hide, Math.max(0, 3000 - (Date.now() - t0))); }
+    function ready() { setTimeout(hide, Math.max(0, 2200 - (Date.now() - t0))); }
     if (document.readyState !== 'loading') ready();
     else document.addEventListener('DOMContentLoaded', ready, { once: true });
-    setTimeout(hide, 4500);
+    setTimeout(hide, 3700);
   })();
 </script>
 <main class="game">
