@@ -1070,14 +1070,25 @@ async function renderGlobalRows() {
   leaderListEl.appendChild(loading);
 
   try {
-    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX);
+    const { rows, stale, error } = await RemoteBoard.top(difficulty, LEADERBOARD_MAX);
     if (token !== leaderRequestToken) return;
     leaderListEl.innerHTML = '';
+
+    if (rows.length === 0 && error) {
+      // 完全没数据也没缓存，远程还失败
+      const fail = document.createElement('p');
+      fail.className = 'leader-empty leader-error';
+      fail.textContent = `全球榜加载失败：${error.message}`;
+      leaderListEl.appendChild(fail);
+      return;
+    }
+
     if (rows.length === 0) {
       leaderEmptyEl.textContent = '全球榜还没有记录，来做第一个上榜的人';
       leaderEmptyEl.hidden = false;
       return;
     }
+
     const fragment = document.createDocumentFragment();
     rows.forEach((row, index) => {
       const hints = Number(row.hints_used) || 0;
@@ -1093,6 +1104,13 @@ async function renderGlobalRows() {
       );
     });
     leaderListEl.appendChild(fragment);
+
+    if (stale) {
+      const tip = document.createElement('p');
+      tip.className = 'leader-stale-tip';
+      tip.textContent = '（上次加载的数据，后台更新中）';
+      leaderListEl.appendChild(tip);
+    }
   } catch (error) {
     if (token !== leaderRequestToken) return;
     leaderListEl.innerHTML = '';
@@ -1237,7 +1255,7 @@ async function submitGlobalScore() {
       hintsUsed: HINT_LIMIT - state.hints,
     });
     submitted = true;
-    const rows = await RemoteBoard.top(difficulty, LEADERBOARD_MAX, { force: true });
+    const { rows } = await RemoteBoard.top(difficulty, LEADERBOARD_MAX, { force: true });
     const index = rows.findIndex((item) => String(item.id) === String(row.id));
     if (index >= 0) {
       setWinGlobalMsg(`已上榜，全球第 ${index + 1} 名 🎉`, false);

@@ -1,6 +1,16 @@
 /**
  * Supabase REST 客户端（全球排行榜）
  * 不引入 SDK，直接走 PostgREST 接口，避免额外体积。
+ *
+ * 缓存策略：SWR（stale-while-revalidate）
+ *   - 内存缓存 5 分钟（同会话内秒开）
+ *   - localStorage 持久化（跨会话防冷启动）
+ *   - 有缓存时立刻返回，无缓存才阻塞 fetch
+ *   - 返回值：Promise<{ rows, fromCache, stale, error }>
+ *     rows       —— 可用数据（可能是旧缓存，可能是新数据）
+ *     fromCache  —— true 表示 rows 来自缓存
+ *     stale      —— true 表示 rows 是缓存，后台正在静默刷新
+ *     error      —— 远程请求失败的原因（只有在完全没缓存时才会有）
  */
 const RemoteBoard = (() => {
   const cfg = window.SUDOKU_CONFIG || {};
@@ -9,16 +19,29 @@ const RemoteBoard = (() => {
   const table = cfg.table || 'sudoku_scores';
   const table2048 = cfg.table2048 || 'game2048_scores';
   const enabled = Boolean(url && key);
-  const cache = new Map();
-  const CACHE_MS = 60_000;
+  const memCache = new Map();
+  const MEM_MS = 5 * 60_000;
+  const LS_PREFIX = 'sudoku_board_';
+
+  // localStorage 安全封装（隐私模式/沙盒环境可能抛错）
+  function lsGet(k) {
+    try {
+      const raw = localStorage.getItem(k);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function lsSet(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
+  }
+  function lsDel(k) {
+    try { localStorage.removeItem(k); } catch {}
+  }
 
   function headers(extra) {
     const base = {
       apikey: key,
       'Content-Type': 'application/json',
     };
-    // 旧版 anon key 是 JWT，需要同时放在 Authorization 里；
-    // 新版 publishable key（sb_publishable_…）只需 apikey 头。
     if (!/^sb_publishable_/.test(key)) {
       base.Authorization = `Bearer ${key}`;
     }
@@ -57,13 +80,11 @@ const RemoteBoard = (() => {
         const isTimeout = isAbort || error.message === 'Failed to fetch';
         const isServerError = error.status !== undefined && error.status >= 500 && error.status < 600;
 
-        // POST/PUT 等写操作不重试（避免重复提交）
         if (!RETRYABLE_METHODS.has(method)) {
           if (isAbort) throw new Error('请求超时，请检查网络');
           throw error;
         }
 
-        // 只有网络抖动 / 5xx 才重试；4xx 直接失败
         if (!isTimeout && !isServerError) throw error;
 
         if (attempt >= 3) break;
@@ -80,24 +101,123 @@ const RemoteBoard = (() => {
     throw err;
   }
 
-  async function top(difficulty, limit = 10, { force = false } = {}) {
-    if (!enabled) throw new Error('未配置 Supabase');
-    const cached = cache.get(difficulty);
-    if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.rows;
+  /** 内部：真正的远程 fetch + 双写 mem + ls */
+  async function _fetchAndCache(cacheKey, query) {
+    const res = await request(query);
+    const rows = await res.json();
+    const list = Array.isArray(rows) ? rows : [];
+    const entry = { at: Date.now(), rows: list };
+    memCache.set(cacheKey, entry);
+    lsSet(LS_PREFIX + cacheKey, entry);
+    return list;
+  }
 
-    const query = [
+  /** 后台静默刷新，不抛错 */
+  function _backgroundRefresh(cacheKey, query) {
+    _fetchAndCache(cacheKey, query).catch(() => {});
+  }
+
+  // ---------- 数独榜 ----------
+  function _sudokuQuery(difficulty, limit) {
+    return `${table}?${[
       `select=id,nickname,time,mistakes,hints_used,created_at,difficulty`,
       `difficulty=eq.${encodeURIComponent(difficulty)}`,
       `order=time.asc,hints_used.asc,mistakes.asc`,
       `limit=${limit}`,
-    ].join('&');
-    const res = await request(`${table}?${query}`);
-    const rows = await res.json();
-    const list = Array.isArray(rows) ? rows : [];
-    cache.set(difficulty, { at: Date.now(), rows: list });
-    return list;
+    ].join('&')}`;
   }
 
+  async function top(difficulty, limit = 10, { force = false } = {}) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const ck = difficulty;
+    const query = _sudokuQuery(difficulty, limit);
+
+    const mem = memCache.get(ck);
+    const ls = lsGet(LS_PREFIX + ck);
+    const freshMem = mem && Date.now() - mem.at < MEM_MS;
+
+    // 1. 强制刷新 或 内存过期（但内存里有数据）→ 阻塞 fetch，失败降级到缓存
+    if (force || (mem && !freshMem)) {
+      try {
+        const rows = await _fetchAndCache(ck, query);
+        return { rows, fromCache: false, stale: false, error: null };
+      } catch (e) {
+        const fallback = (ls && ls.rows) ? ls.rows : (mem ? mem.rows : null);
+        if (fallback) return { rows: fallback, fromCache: true, stale: true, error: e };
+        return { rows: [], fromCache: false, stale: false, error: e };
+      }
+    }
+
+    // 2. 内存新鲜 → 直接返回，且如果上次刷新已超过 1min 则后台静默刷新
+    if (freshMem) {
+      if (Date.now() - mem.at > 60_000) _backgroundRefresh(ck, query);
+      return { rows: mem.rows, fromCache: false, stale: false, error: null };
+    }
+
+    // 3. 内存没，但 ls 有 → 立刻返回 ls，后台静默刷新
+    if (ls && ls.rows) {
+      _backgroundRefresh(ck, query);
+      return { rows: ls.rows, fromCache: true, stale: true, error: null };
+    }
+
+    // 4. 完全没缓存 → 阻塞 fetch
+    try {
+      const rows = await _fetchAndCache(ck, query);
+      return { rows, fromCache: false, stale: false, error: null };
+    } catch (e) {
+      return { rows: [], fromCache: false, stale: false, error: e };
+    }
+  }
+
+  // ---------- 2048 榜 ----------
+  const CK_2048 = '2048';
+
+  function _2048Query(limit) {
+    return `${table2048}?${[
+      'select=id,nickname,score,max_tile,created_at',
+      'order=score.desc,max_tile.desc,created_at.asc',
+      `limit=${limit}`,
+    ].join('&')}`;
+  }
+
+  async function top2048(limit = 10, { force = false } = {}) {
+    if (!enabled) throw new Error('未配置 Supabase');
+    const query = _2048Query(limit);
+
+    const mem = memCache.get(CK_2048);
+    const ls = lsGet(LS_PREFIX + CK_2048);
+    const freshMem = mem && Date.now() - mem.at < MEM_MS;
+
+    if (force || (mem && !freshMem)) {
+      try {
+        const rows = await _fetchAndCache(CK_2048, query);
+        return { rows, fromCache: false, stale: false, error: null };
+      } catch (e) {
+        const fallback = (ls && ls.rows) ? ls.rows : (mem ? mem.rows : null);
+        if (fallback) return { rows: fallback, fromCache: true, stale: true, error: e };
+        return { rows: [], fromCache: false, stale: false, error: e };
+      }
+    }
+
+    if (freshMem) {
+      if (Date.now() - mem.at > 60_000) _backgroundRefresh(CK_2048, query);
+      return { rows: mem.rows, fromCache: false, stale: false, error: null };
+    }
+
+    if (ls && ls.rows) {
+      _backgroundRefresh(CK_2048, query);
+      return { rows: ls.rows, fromCache: true, stale: true, error: null };
+    }
+
+    try {
+      const rows = await _fetchAndCache(CK_2048, query);
+      return { rows, fromCache: false, stale: false, error: null };
+    } catch (e) {
+      return { rows: [], fromCache: false, stale: false, error: e };
+    }
+  }
+
+  // ---------- 提交 ----------
   async function submit(entry) {
     if (!enabled) throw new Error('未配置 Supabase');
     const res = await request(table, {
@@ -113,25 +233,9 @@ const RemoteBoard = (() => {
     });
     const rows = await res.json().catch(() => []);
     const row = Array.isArray(rows) ? rows[0] : rows;
-    cache.delete(entry.difficulty);
+    memCache.delete(entry.difficulty);
+    lsDel(LS_PREFIX + entry.difficulty);
     return row || {};
-  }
-
-  async function top2048(limit = 10, { force = false } = {}) {
-    if (!enabled) throw new Error('未配置 Supabase');
-    const cached = cache.get('2048');
-    if (!force && cached && Date.now() - cached.at < CACHE_MS) return cached.rows;
-
-    const query = [
-      'select=id,nickname,score,max_tile,created_at',
-      'order=score.desc,max_tile.desc,created_at.asc',
-      `limit=${limit}`,
-    ].join('&');
-    const res = await request(`${table2048}?${query}`);
-    const rows = await res.json();
-    const list = Array.isArray(rows) ? rows : [];
-    cache.set('2048', { at: Date.now(), rows: list });
-    return list;
   }
 
   async function submit2048(entry) {
@@ -147,12 +251,19 @@ const RemoteBoard = (() => {
     });
     const rows = await res.json().catch(() => []);
     const row = Array.isArray(rows) ? rows[0] : rows;
-    cache.delete('2048');
+    memCache.delete(CK_2048);
+    lsDel(LS_PREFIX + CK_2048);
     return row || {};
   }
 
   function clearCache() {
-    cache.clear();
+    memCache.clear();
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(LS_PREFIX)) lsDel(k);
+      }
+    } catch {}
   }
 
   return { enabled, top, submit, top2048, submit2048, clearCache };

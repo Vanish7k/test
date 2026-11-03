@@ -342,7 +342,7 @@
     lbMsg.textContent = '加载中…';
 
     try {
-      const rows = await RemoteBoard2048.top2048(10);
+      const { rows, stale, error } = await RemoteBoard2048.top2048(10);
       if (seq !== lbRequest) return;
       lbMsg.hidden = true;
       renderLb(
@@ -354,6 +354,10 @@
         }))
       );
       lbNote.hidden = rows.length > 0;
+      if (stale) {
+        lbNote.hidden = false;
+        lbNote.textContent = '（上次加载的数据，后台更新中）';
+      }
     } catch (error) {
       if (seq !== lbRequest) return;
       renderLb([]);

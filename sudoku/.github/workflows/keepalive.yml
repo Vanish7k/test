@@ -1,0 +1,28 @@
+name: Supabase 保活
+
+# 免费档项目连续 7 天无访问会被暂停，这里每天发一次真实查询，保持项目活跃。
+# 只做只读查询，不会往排行榜里写数据。
+on:
+  schedule:
+    # UTC 03:17 = 北京时间 11:17，避开整点高峰
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 查询排行榜（只读）
+        run: |
+          url="https://mnkozzyqusriqszlvepr.supabase.co/rest/v1/sudoku_scores?select=id&limit=1"
+          key="sb_publishable_f8uUcUb3HRIBiFkuPe1vIw_cd5Fz1hL"
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 \
+            "$url" -H "apikey: $key" -H "Authorization: Bearer $key")
+          echo "HTTP $code"
+          if [ "$code" -ge 400 ]; then
+            echo "保活请求失败，请检查项目是否已被暂停或密钥是否失效"
+            exit 1
+          fi
